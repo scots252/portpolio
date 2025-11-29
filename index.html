@@ -247,12 +247,39 @@
       const fileInput = document.getElementById('art-file');
       const publish = document.getElementById('art-publish').checked;
       if(!title || !fileInput.files || fileInput.files.length===0){ alert('กรุณากรอกชื่อผลงานและเลือกไฟล์ภาพ'); return; }
+
+      // Ensure user is authenticated and capture user id for created_by
+      const sessionResp = await supabaseClient.auth.getSession();
+      const userId = sessionResp?.data?.session?.user?.id || null;
+      if(!userId){
+        alert('คุณต้องล็อกอินเป็นผู้ดูแลก่อนจึงจะอัปโหลดได้');
+        return;
+      }
+
       const file = fileInput.files[0];
       const fileExt = file.name.split('.').pop();
       const fileName = `${Date.now()}-${Math.random().toString(36).slice(2,8)}.${fileExt}`;
       try{
-        // upload file to storage
+        // upload file to storage (ensure bucket 'artworks' exists)
         const up = await supabaseClient.storage.from('artworks').upload(fileName, file, {cacheControl: '3600', upsert: false});
+        if(up.error){ const msg = formatErr(up.error); alert('อัปโหลดไม่สำเร็จ: ' + msg); console.error(up.error); return; }
+        // get public URL
+        const { data: publicUrlData, error: urlErr } = await supabaseClient.storage.from('artworks').getPublicUrl(fileName);
+        if(urlErr){ const msg = formatErr(urlErr); alert('ไม่สามารถสร้าง public URL: ' + msg); console.error(urlErr); return; }
+        const imageUrl = (publicUrlData && publicUrlData.publicUrl) ? publicUrlData.publicUrl : '';
+        // insert record with created_by so RLS can validate
+        const { error: insErr } = await supabaseClient.from('artworks').insert({ title, description: desc, image_url: imageUrl, published: publish, created_by: userId });
+        if(insErr){ const msg = formatErr(insErr); alert('สร้างผลงานล้มเหลว: ' + msg); console.error(insErr); return; }
+        alert('อัปโหลดสำเร็จ');
+        // clear form and refresh
+        artForm.reset();
+        await loadAdminList();
+        loadGallery();
+      }catch(err){
+        console.error(err);
+        alert('เกิดข้อผิดพลาดในการอัปโหลด: ' + formatErr(err));
+      }
+    });
         if(up.error){ const msg = formatErr(up.error); alert('อัปโหลดไม่สำเร็จ: ' + msg); console.error(up.error); return; }
         // get public URL
         const { data: publicUrlData, error: urlErr } = await supabaseClient.storage.from('artworks').getPublicUrl(fileName);
