@@ -4,34 +4,18 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Art Portfolio + Admin Dashboard</title>
-  <!-- Tailwind CDN for quick styling (good for prototype) -->
   <script src="https://cdn.tailwindcss.com"></script>
-  <!-- Supabase JS (browser) -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <style>
-    /* small extra styles for aesthetic touches */
     body { background: linear-gradient(180deg,#0f172a 0%, #07133a 60%); color: #e6eef8; }
     .glass { background: rgba(255,255,255,0.03); backdrop-filter: blur(6px); border: 1px solid rgba(255,255,255,0.04); }
     .art-card img { height: 220px; object-fit: cover; }
+    pre.sql { background: rgba(0,0,0,0.35); padding: 10px; border-radius:6px; overflow:auto; }
+    .hint { background: rgba(255,255,255,0.02); padding:10px; border-radius:8px; }
+    .log { font-family: monospace; font-size: 12px; white-space: pre-wrap; }
   </style>
 </head>
 <body class="min-h-screen p-6">
-  <!--
-    INSTRUCTIONS (edit these constants below inside the <script> before using):
-    - Set SUPABASE_URL and SUPABASE_ANON_KEY to your project's values.
-      (You provided a project URL and an API key—rotate the key in production.)
-    - Create a Storage bucket named `artworks` (public or set proper RLS)
-    - Create a table `artworks` with columns:
-        id uuid primary key default uuid_generate_v4(),
-        title text,
-        description text,
-        image_url text,
-        published boolean default false,
-        created_at timestamptz default now()
-    - Use Supabase Auth to create admin user(s) (email/password)
-    - For production, add RLS policies to restrict insert/update/delete to admins
-  -->
-
   <div class="max-w-7xl mx-auto">
     <header class="flex items-center justify-between mb-8">
       <div class="flex items-center gap-4">
@@ -47,15 +31,11 @@
       </div>
     </header>
 
-    <!-- Main: Gallery -->
     <main id="page-gallery" class="space-y-6">
-      <section class="grid lg:grid-cols-3 md:grid-cols-2 gap-6">
-        <!-- art cards inserted here -->
-      </section>
+      <section class="grid lg:grid-cols-3 md:grid-cols-2 gap-6" id="gallery-grid"></section>
       <div id="gallery-empty" class="text-center opacity-80">โหลดผลงาน...</div>
     </main>
 
-    <!-- Admin area (hidden by default) -->
     <section id="page-admin" class="hidden glass rounded-lg p-6 mt-6">
       <div class="flex justify-between items-start gap-6">
         <div class="w-80">
@@ -86,6 +66,31 @@
               <h3 class="font-semibold">รายการผลงาน (ผู้ดูแล)</h3>
               <div id="admin-list" class="mt-3 grid md:grid-cols-2 gap-3"></div>
             </div>
+
+            <div id="rls-help" class="mt-4 text-sm opacity-80 hidden">
+              <div class="hint">
+                <p class="font-semibold">ถ้าเจอข้อผิดพลาด RLS (row-level security) หรือปัญหา bucket</p>
+                <p>รัน SQL ชุดนี้ใน Supabase → SQL Editor หรือส่งให้ผู้ดูแลระบบ (sysadmin) รันให้</p>
+                <pre class="sql">-- SQL สำหรับเปิด column created_by + RLS policies
+alter table if exists public.artworks add column if not exists created_by uuid references auth.users(id);
+
+alter table public.artworks enable row level security;
+
+-- สร้าง policies (อย่าใช้ "if not exists" กับ create policy)
+create policy "users can insert own artworks" on public.artworks for insert to authenticated with check (auth.uid() = created_by);
+create policy "users can view artworks" on public.artworks for select to authenticated using (true);
+create policy "users can update own artworks" on public.artworks for update to authenticated using (auth.uid() = created_by) with check (auth.uid() = created_by);
+create policy "users can delete own artworks" on public.artworks for delete to authenticated using (auth.uid() = created_by);
+
+-- Storage: allow authenticated users to insert objects into bucket 'ARTWORKS' (adjust bucket name exactly as in your dashboard)
+create policy "Allow authenticated uploads to ARTWORKS" on storage.objects for insert to authenticated with check (bucket_id = 'ARTWORKS');
+create policy "Allow authenticated select ARTWORKS" on storage.objects for select to authenticated using (bucket_id = 'ARTWORKS');
+                </pre>
+                <p class="mt-2">ตรวจว่าบัคเก็ตชื่อ <code>ARTWORKS</code> หรือชื่อที่แสดงใน Dashboard ให้ตรงกับค่าตัวแปร <code>BUCKET_NAME</code> ในโค้ด</p>
+              </div>
+            </div>
+
+            <div id="last-log" class="mt-3 text-sm opacity-80 log"></div>
           </div>
         </div>
       </div>
@@ -95,45 +100,50 @@
   </div>
 
   <script>
-    // ============== CONFIG (edit these values) ==============
+    // ============== CONFIG ==============
     const SUPABASE_URL = 'https://yrivvckaeqhfcjuputem.supabase.co';
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlyaXZ2Y2thZXFoZmNqdXB1dGVtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ0MjYzNjksImV4cCI6MjA4MDAwMjM2OX0.Hw7rtrJyXS6sClytRKSYutvW7Co5l_jmbOUOduo30u0';
-    // ======================================================
+    // NOTE: match the bucket name EXACTLY as shown in your Supabase dashboard (case-sensitive)
+    const BUCKET_NAME = 'ARTWORKS'; // <-- Updated to match your dashboard screenshot
+    const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
+    const ALLOWED_MIMES = ['image/jpeg','image/png','image/webp'];
+    // ======================================
 
-    // Instantiate Supabase client correctly. The UMD script exposes a global `supabase` helper
-    // with a createClient method. Use a distinct variable name to avoid shadowing.
     const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-    // helper to format errors safely
+    // Improved error formatter: prints nested objects, status, message
     function formatErr(err){
       if(!err) return '';
-      // Supabase sometimes returns an object with .message, sometimes nested, or plain string
       if(typeof err === 'string') return err;
+      // supabase error sometimes is { message, status }
+      if(err.message && err.status) return `${err.message} (status: ${err.status})`;
+      if(err.error && err.error.message) return `${err.error.message}`;
       if(err.message) return err.message;
-      try{ return JSON.stringify(err); }catch(e){ return String(err); }
+      try{ return JSON.stringify(err, Object.getOwnPropertyNames(err)); }catch(e){ return String(err); }
     }
 
     // UI refs
-    const gallery = document.querySelector('main#page-gallery > section');
+    const galleryGrid = document.getElementById('gallery-grid');
     const galleryEmpty = document.getElementById('gallery-empty');
     const pageAdmin = document.getElementById('page-admin');
     const pageGallery = document.getElementById('page-gallery');
     const btnOpenAdmin = document.getElementById('btn-open-admin');
     const btnOpenGallery = document.getElementById('btn-open-gallery');
 
-    // admin refs
     const loginForm = document.getElementById('login-form');
     const authMsg = document.getElementById('auth-msg');
     const btnSignOut = document.getElementById('btn-signout');
     const artForm = document.getElementById('art-form');
     const adminList = document.getElementById('admin-list');
     const adminControls = document.getElementById('admin-controls');
+    const rlsHelp = document.getElementById('rls-help');
+    const lastLog = document.getElementById('last-log');
 
-    // navigation
+    function logLast(txt){ lastLog.textContent = txt; console.log('APP LOG:', txt); }
+
     btnOpenAdmin.addEventListener('click', async () => {
       pageAdmin.classList.remove('hidden');
       pageGallery.classList.add('hidden');
-      // check login before showing admin controls
       try{
         const { data } = await supabaseClient.auth.getSession();
         if(!data || !data.session){
@@ -146,7 +156,6 @@
           authMsg.textContent = '';
           await loadAdminList();
         }
-        // ensure sign-in state is reflected
         await checkSession();
       }catch(err){
         console.error(err);
@@ -160,9 +169,8 @@
     loadGallery();
     checkSession();
 
-    // ---------------- Gallery ----------------
     async function loadGallery(){
-      gallery.innerHTML = '';
+      galleryGrid.innerHTML = '';
       galleryEmpty.textContent = 'กำลังโหลดผลงาน...';
       try{
         const { data, error } = await supabaseClient.from('artworks').select('*').eq('published', true).order('created_at', {ascending: false});
@@ -174,7 +182,7 @@
         }
         if(!data || data.length === 0){ galleryEmpty.textContent = 'ยังไม่มีผลงานที่เผยแพร่'; return; }
         galleryEmpty.textContent = '';
-        for(const art of data){
+        data.forEach(art => {
           const card = document.createElement('article');
           card.className = 'art-card rounded-lg overflow-hidden glass p-0';
           card.innerHTML = `
@@ -184,15 +192,14 @@
               <p class="text-sm mt-2 opacity-80">${escapeHtml(art.description || '')}</p>
             </div>
           `;
-          gallery.appendChild(card);
-        }
+          galleryGrid.appendChild(card);
+        });
       }catch(err){
         console.error(err);
         galleryEmpty.textContent = 'เกิดข้อผิดพลาดในการโหลด: ' + formatErr(err);
       }
     }
 
-    // ---------------- Auth & Admin ----------------
     loginForm.addEventListener('submit', async (e)=>{
       e.preventDefault();
       const email = document.getElementById('email').value.trim();
@@ -200,102 +207,133 @@
       if(!email || !password){ authMsg.textContent = 'กรุณากรอกอีเมลและรหัสผ่าน'; return; }
       authMsg.textContent = 'กำลังเข้าสู่ระบบ...';
       try{
-        const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
-        if(error){
-          const msg = formatErr(error);
-          authMsg.textContent = 'ล้มเหลว: ' + msg;
-          console.error(error);
-          return;
-        }
+        const resp = await supabaseClient.auth.signInWithPassword({ email, password });
+        if(resp.error){ const msg = formatErr(resp.error); authMsg.textContent = 'ล้มเหลว: ' + msg; console.error(resp.error); return; }
+        // resp.data.session available when success
         authMsg.textContent = 'เข้าสู่ระบบสำเร็จ';
-        // show admin controls after login
         adminControls.classList.remove('hidden');
         btnSignOut.classList.remove('hidden');
         document.getElementById('admin-panel').classList.remove('hidden');
         await loadAdminList();
-      }catch(err){
-        console.error(err);
-        authMsg.textContent = 'เกิดข้อผิดพลาดในการเข้าสู่ระบบ: ' + formatErr(err);
-      }
+      }catch(err){ console.error(err); authMsg.textContent = 'เกิดข้อผิดพลาดในการเข้าสู่ระบบ: ' + formatErr(err); }
     });
 
     btnSignOut.addEventListener('click', async ()=>{
-      try{
-        await supabaseClient.auth.signOut();
-        authMsg.textContent = 'ออกจากระบบแล้ว';
-        btnSignOut.classList.add('hidden');
-        adminControls.classList.add('hidden');
-        adminList.innerHTML='';
-      }catch(err){
-        console.error(err);
-        authMsg.textContent = 'การออกจากระบบผิดพลาด: ' + formatErr(err);
-      }
+      try{ await supabaseClient.auth.signOut(); authMsg.textContent = 'ออกจากระบบแล้ว'; btnSignOut.classList.add('hidden'); adminControls.classList.add('hidden'); adminList.innerHTML=''; }catch(err){ console.error(err); authMsg.textContent = 'การออกจากระบบผิดพลาด: ' + formatErr(err); }
     });
 
     async function checkSession(){
-      try{
-        const { data } = await supabaseClient.auth.getSession();
-        if(data && data.session){ btnSignOut.classList.remove('hidden'); } else { btnSignOut.classList.add('hidden'); }
-      }catch(err){ console.error(err); }
+      try{ const { data } = await supabaseClient.auth.getSession(); if(data && data.session){ btnSignOut.classList.remove('hidden'); } else { btnSignOut.classList.add('hidden'); } }catch(err){ console.error(err); }
     }
 
-    // create + upload
+    // Upload handler - improved diagnostics and RLS guidance
     document.getElementById('btn-upload').addEventListener('click', async (e)=>{
       e.preventDefault();
+      rlsHelp.classList.add('hidden');
+
       const title = document.getElementById('art-title').value.trim();
       const desc = document.getElementById('art-desc').value.trim();
       const fileInput = document.getElementById('art-file');
       const publish = document.getElementById('art-publish').checked;
       if(!title || !fileInput.files || fileInput.files.length===0){ alert('กรุณากรอกชื่อผลงานและเลือกไฟล์ภาพ'); return; }
 
-      // Ensure user is authenticated and capture user id for created_by
+      // ensure authenticated
       const sessionResp = await supabaseClient.auth.getSession();
       const userId = sessionResp?.data?.session?.user?.id || null;
-      if(!userId){
-        alert('คุณต้องล็อกอินเป็นผู้ดูแลก่อนจึงจะอัปโหลดได้');
+      if(!userId){ alert('คุณต้องล็อกอินก่อนอัปโหลด'); return; }
+
+      // build filename and path
+      const file = fileInput.files[0];
+      const fileExt = file.name.split('.').pop();
+      const filePath = `${userId}/${Date.now()}-${Math.random().toString(36).slice(2,8)}.${fileExt}`;
+
+      // validate file
+      if(file.size > MAX_FILE_SIZE){ alert('ไฟล์ใหญ่เกินไป — จำกัดที่ 10 MB'); return; }
+      if(!ALLOWED_MIMES.includes(file.type)){
+        alert('ชนิดไฟล์ไม่รองรับ — อัปโหลดได้เฉพาะ jpg/png/webp');
         return;
       }
 
-      const file = fileInput.files[0];
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${Date.now()}-${Math.random().toString(36).slice(2,8)}.${fileExt}`;
       try{
-        // upload file to storage (ensure bucket 'artworks' exists)
-        const up = await supabaseClient.storage.from('artworks').upload(fileName, file, {cacheControl: '3600', upsert: false});
-        if(up.error){ const msg = formatErr(up.error); alert('อัปโหลดไม่สำเร็จ: ' + msg); console.error(up.error); return; }
-        // get public URL
-        const { data: publicUrlData, error: urlErr } = await supabaseClient.storage.from('artworks').getPublicUrl(fileName);
-        if(urlErr){ const msg = formatErr(urlErr); alert('ไม่สามารถสร้าง public URL: ' + msg); console.error(urlErr); return; }
-        const imageUrl = (publicUrlData && publicUrlData.publicUrl) ? publicUrlData.publicUrl : '';
-        // insert record with created_by so RLS can validate
-        const { error: insErr } = await supabaseClient.from('artworks').insert({ title, description: desc, image_url: imageUrl, published: publish, created_by: userId });
-        if(insErr){ const msg = formatErr(insErr); alert('สร้างผลงานล้มเหลว: ' + msg); console.error(insErr); return; }
+        // 2) upload - try exact bucket name first; if 404 try common variants
+        const candidates = [BUCKET_NAME, BUCKET_NAME.toLowerCase(), BUCKET_NAME.toUpperCase()];
+        let uploaded = null;
+        let lastError = null;
+        for(const candidate of candidates){
+          try{
+            logLast(`Attempting upload to bucket: ${candidate}`);
+            const { data: upData, error: upErr } = await supabaseClient.storage.from(candidate).upload(filePath, file, { cacheControl: '3600', upsert: false });
+            if(upErr){
+              lastError = upErr;
+              console.warn('upload failed for', candidate, upErr);
+              // if 404, try next candidate
+              if(upErr.status === 404) continue;
+              // otherwise break and show helpful message
+              break;
+            }
+            uploaded = { data: upData, bucket: candidate };
+            break;
+          }catch(inner){
+            lastError = inner;
+            console.error('unexpected inner error uploading to', candidate, inner);
+            // try next candidate
+          }
+        }
+
+        if(!uploaded){
+          const msg = formatErr(lastError || 'unknown');
+          console.error('Storage upload error object:', lastError);
+          // give more helpful suggestions depending on status or message
+          const status = lastError && lastError.status ? lastError.status : null;
+          if(status === 404 || (msg && msg.toLowerCase().includes('bucket'))){
+            alert('อัปโหลดไม่สำเร็จ — บัคเก็ตไม่พบ (ตรวจชื่อบัคเก็ตใน Supabase Storage ว่าเป็น "ARTWORKS" หรือชื่อที่แสดงในหน้าจอของคุณ)');
+            rlsHelp.classList.remove('hidden');
+            logLast('Upload failed: bucket not found. Tried: ' + candidates.join(', '));
+            return;
+          }
+          if(status === 403 || (msg && msg.toLowerCase().includes('permission'))){
+            alert('อัปโหลดไม่สำเร็จ — สิทธิ์ไม่พอ (ตรวจ Storage policies และ RLS ว่ารองรับการอัปโหลดจากผู้ที่ล็อกอิน)');
+            rlsHelp.classList.remove('hidden');
+            logLast('Upload failed: permission denied. Last error: ' + msg);
+            return;
+          }
+          alert('อัปโหลดไม่สำเร็จ: ' + msg);
+          rlsHelp.classList.remove('hidden');
+          logLast('Upload failed: ' + msg);
+          return;
+        }
+
+        const finalBucket = uploaded.bucket;
+        logLast('Uploaded to bucket: ' + finalBucket + ' path: ' + filePath);
+
+        // 3) get public URL
+        const { data: publicUrlData, error: urlErr } = await supabaseClient.storage.from(finalBucket).getPublicUrl(filePath);
+        if(urlErr){ const msg = formatErr(urlErr); console.error('getPublicUrl error:', urlErr); alert('ไม่สามารถสร้าง public URL: ' + msg); logLast('getPublicUrl error: ' + msg); return; }
+        const imageUrl = publicUrlData?.publicUrl || '';
+
+        // 4) insert row with created_by so RLS can validate
+        const { data: insData, error: insErr } = await supabaseClient.from('artworks').insert({ title, description: desc, image_url: imageUrl, published: publish, created_by: userId }).select();
+        if(insErr){
+          const msg = formatErr(insErr);
+          console.error('Insert error object:', insErr);
+          alert('สร้างผลงานล้มเหลว: ' + msg);
+          if(msg.toLowerCase().includes('row-level') || msg.toLowerCase().includes('row level')){
+            rlsHelp.classList.remove('hidden');
+          }
+          logLast('Insert failed: ' + msg);
+          return;
+        }
+
         alert('อัปโหลดสำเร็จ');
-        // clear form and refresh
         artForm.reset();
         await loadAdminList();
         loadGallery();
+
       }catch(err){
-        console.error(err);
+        console.error('Unexpected error during upload:', err);
         alert('เกิดข้อผิดพลาดในการอัปโหลด: ' + formatErr(err));
-      }
-    });
-        if(up.error){ const msg = formatErr(up.error); alert('อัปโหลดไม่สำเร็จ: ' + msg); console.error(up.error); return; }
-        // get public URL
-        const { data: publicUrlData, error: urlErr } = await supabaseClient.storage.from('artworks').getPublicUrl(fileName);
-        if(urlErr){ const msg = formatErr(urlErr); alert('ไม่สามารถสร้าง public URL: ' + msg); console.error(urlErr); return; }
-        const imageUrl = (publicUrlData && publicUrlData.publicUrl) ? publicUrlData.publicUrl : '';
-        // insert record
-        const { error: insErr } = await supabaseClient.from('artworks').insert({ title, description: desc, image_url: imageUrl, published: publish });
-        if(insErr){ const msg = formatErr(insErr); alert('สร้างผลงานล้มเหลว: ' + msg); console.error(insErr); return; }
-        alert('อัปโหลดสำเร็จ');
-        // clear form and refresh
-        artForm.reset();
-        await loadAdminList();
-        loadGallery();
-      }catch(err){
-        console.error(err);
-        alert('เกิดข้อผิดพลาดในการอัปโหลด: ' + formatErr(err));
+        rlsHelp.classList.remove('hidden');
+        logLast('Unexpected upload error: ' + formatErr(err));
       }
     });
 
