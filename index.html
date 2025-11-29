@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Art Portfolio + Admin Dashboard</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Supabase (UMD) -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <style>
     body { background: linear-gradient(180deg,#0f172a 0%, #07133a 60%); color: #e6eef8; }
@@ -13,6 +14,7 @@
     pre.sql { background: rgba(0,0,0,0.35); padding: 10px; border-radius:6px; overflow:auto; }
     .hint { background: rgba(255,255,255,0.02); padding:10px; border-radius:8px; }
     .log { font-family: monospace; font-size: 12px; white-space: pre-wrap; }
+    .badge { background: rgba(255,255,255,0.04); padding: 2px 8px; border-radius: 999px; }
   </style>
 </head>
 <body class="min-h-screen p-6">
@@ -70,23 +72,26 @@
             <div id="rls-help" class="mt-4 text-sm opacity-80 hidden">
               <div class="hint">
                 <p class="font-semibold">ถ้าเจอข้อผิดพลาด RLS (row-level security) หรือปัญหา bucket</p>
-                <p>รัน SQL ชุดนี้ใน Supabase → SQL Editor หรือส่งให้ผู้ดูแลระบบ (sysadmin) รันให้</p>
-                <pre class="sql">-- SQL สำหรับเปิด column created_by + RLS policies
+                <p>รัน SQL ชุดนี้ใน Supabase → SQL Editor หรือสร้าง Storage policies ตามคำแนะนำด้านล่าง</p>
+                <pre class="sql">-- Database (artworks table)
 alter table if exists public.artworks add column if not exists created_by uuid references auth.users(id);
-
 alter table public.artworks enable row level security;
 
--- สร้าง policies (อย่าใช้ "if not exists" กับ create policy)
+-- Allow authenticated users to insert rows where created_by = auth.uid()
 create policy "users can insert own artworks" on public.artworks for insert to authenticated with check (auth.uid() = created_by);
-create policy "users can view artworks" on public.artworks for select to authenticated using (true);
-create policy "users can update own artworks" on public.artworks for update to authenticated using (auth.uid() = created_by) with check (auth.uid() = created_by);
-create policy "users can delete own artworks" on public.artworks for delete to authenticated using (auth.uid() = created_by);
+create policy "users can select own artworks" on public.artworks for select to authenticated using (auth.uid() = created_by);
 
--- Storage: allow authenticated users to insert objects into bucket 'ARTWORKS' (adjust bucket name exactly as in your dashboard)
-create policy "Allow authenticated uploads to ARTWORKS" on storage.objects for insert to authenticated with check (bucket_id = 'ARTWORKS');
-create policy "Allow authenticated select ARTWORKS" on storage.objects for select to authenticated using (bucket_id = 'ARTWORKS');
+-- Storage policies (in Storage → Policies for bucket 'artworks')
+-- Policy definition box expects a boolean expression only (not full CREATE POLICY SQL).
+-- For an INSERT (upload) policy, set Allowed operations: INSERT + upload, Target role: authenticated
+-- Policy definition (enter only this expression in the UI):
+bucket_id = 'artworks'
+
+-- For read (SELECT) policy, Allowed operation: SELECT, Target role: authenticated
+-- Policy definition (enter only this expression in the UI):
+bucket_id = 'artworks'
                 </pre>
-                <p class="mt-2">ตรวจว่าบัคเก็ตชื่อ <code>ARTWORKS</code> หรือชื่อที่แสดงใน Dashboard ให้ตรงกับค่าตัวแปร <code>BUCKET_NAME</code> ในโค้ด</p>
+                <p class="mt-2">ตรวจให้แน่ใจว่า<strong>ชื่อบัคเก็ตเป็นตัวพิมพ์เล็ก</strong> <span class="badge">artworks</span> และ Policy definition ใน UI ใส่เฉพาะเงื่อนไขเช่น <code>bucket_id = 'artworks'</code></p>
               </div>
             </div>
 
@@ -103,23 +108,23 @@ create policy "Allow authenticated select ARTWORKS" on storage.objects for selec
     // ============== CONFIG ==============
     const SUPABASE_URL = 'https://yrivvckaeqhfcjuputem.supabase.co';
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlyaXZ2Y2thZXFoZmNqdXB1dGVtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ0MjYzNjksImV4cCI6MjA4MDAwMjM2OX0.Hw7rtrJyXS6sClytRKSYutvW7Co5l_jmbOUOduo30u0';
-    // NOTE: match the bucket name EXACTLY as shown in your Supabase dashboard (case-sensitive)
-    const BUCKET_NAME = 'ARTWORKS'; // <-- Updated to match your dashboard screenshot
+    // MUST match your Supabase Storage bucket name exactly (case-sensitive)
+    const BUCKET_NAME = 'artworks';
     const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
     const ALLOWED_MIMES = ['image/jpeg','image/png','image/webp'];
     // ======================================
 
+    // instantiate properly
     const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     // Improved error formatter: prints nested objects, status, message
     function formatErr(err){
       if(!err) return '';
       if(typeof err === 'string') return err;
-      // supabase error sometimes is { message, status }
       if(err.message && err.status) return `${err.message} (status: ${err.status})`;
       if(err.error && err.error.message) return `${err.error.message}`;
       if(err.message) return err.message;
-      try{ return JSON.stringify(err, Object.getOwnPropertyNames(err)); }catch(e){ return String(err); }
+      try{ return JSON.stringify(err, Object.getOwnPropertyNames(err), 2); }catch(e){ return String(err); }
     }
 
     // UI refs
@@ -226,7 +231,7 @@ create policy "Allow authenticated select ARTWORKS" on storage.objects for selec
       try{ const { data } = await supabaseClient.auth.getSession(); if(data && data.session){ btnSignOut.classList.remove('hidden'); } else { btnSignOut.classList.add('hidden'); } }catch(err){ console.error(err); }
     }
 
-    // Upload handler - improved diagnostics and RLS guidance
+    // Upload handler - simplified to target the confirmed bucket name 'artworks'
     document.getElementById('btn-upload').addEventListener('click', async (e)=>{
       e.preventDefault();
       rlsHelp.classList.add('hidden');
@@ -255,46 +260,23 @@ create policy "Allow authenticated select ARTWORKS" on storage.objects for selec
       }
 
       try{
-        // 2) upload - try exact bucket name first; if 404 try common variants
-        const candidates = [BUCKET_NAME, BUCKET_NAME.toLowerCase(), BUCKET_NAME.toUpperCase()];
-        let uploaded = null;
-        let lastError = null;
-        for(const candidate of candidates){
-          try{
-            logLast(`Attempting upload to bucket: ${candidate}`);
-            const { data: upData, error: upErr } = await supabaseClient.storage.from(candidate).upload(filePath, file, { cacheControl: '3600', upsert: false });
-            if(upErr){
-              lastError = upErr;
-              console.warn('upload failed for', candidate, upErr);
-              // if 404, try next candidate
-              if(upErr.status === 404) continue;
-              // otherwise break and show helpful message
-              break;
-            }
-            uploaded = { data: upData, bucket: candidate };
-            break;
-          }catch(inner){
-            lastError = inner;
-            console.error('unexpected inner error uploading to', candidate, inner);
-            // try next candidate
-          }
-        }
-
-        if(!uploaded){
-          const msg = formatErr(lastError || 'unknown');
-          console.error('Storage upload error object:', lastError);
-          // give more helpful suggestions depending on status or message
-          const status = lastError && lastError.status ? lastError.status : null;
-          if(status === 404 || (msg && msg.toLowerCase().includes('bucket'))){
-            alert('อัปโหลดไม่สำเร็จ — บัคเก็ตไม่พบ (ตรวจชื่อบัคเก็ตใน Supabase Storage ว่าเป็น "ARTWORKS" หรือชื่อที่แสดงในหน้าจอของคุณ)');
+        // Upload to the confirmed 'artworks' bucket only
+        logLast(`Uploading to bucket: ${BUCKET_NAME} path: ${filePath}`);
+        const { data: upData, error: upErr } = await supabaseClient.storage.from(BUCKET_NAME).upload(filePath, file, { cacheControl: '3600', upsert: false });
+        if(upErr){
+          const msg = formatErr(upErr);
+          console.error('Storage upload error object:', upErr);
+          // helpful messages
+          if(upErr.status === 404 || msg.toLowerCase().includes('bucket')){
+            alert('อัปโหลดไม่สำเร็จ — บัคเก็ตไม่พบ (ตรวจชื่อบัคเก็ตใน Supabase Storage ว่าเป็น "artworks")');
             rlsHelp.classList.remove('hidden');
-            logLast('Upload failed: bucket not found. Tried: ' + candidates.join(', '));
+            logLast('Upload failed: bucket not found.');
             return;
           }
-          if(status === 403 || (msg && msg.toLowerCase().includes('permission'))){
+          if(upErr.status === 403 || msg.toLowerCase().includes('permission')){
             alert('อัปโหลดไม่สำเร็จ — สิทธิ์ไม่พอ (ตรวจ Storage policies และ RLS ว่ารองรับการอัปโหลดจากผู้ที่ล็อกอิน)');
             rlsHelp.classList.remove('hidden');
-            logLast('Upload failed: permission denied. Last error: ' + msg);
+            logLast('Upload failed: permission denied. ' + msg);
             return;
           }
           alert('อัปโหลดไม่สำเร็จ: ' + msg);
@@ -303,15 +285,12 @@ create policy "Allow authenticated select ARTWORKS" on storage.objects for selec
           return;
         }
 
-        const finalBucket = uploaded.bucket;
-        logLast('Uploaded to bucket: ' + finalBucket + ' path: ' + filePath);
-
-        // 3) get public URL
-        const { data: publicUrlData, error: urlErr } = await supabaseClient.storage.from(finalBucket).getPublicUrl(filePath);
+        logLast('Upload succeeded, creating public URL...');
+        const { data: publicUrlData, error: urlErr } = await supabaseClient.storage.from(BUCKET_NAME).getPublicUrl(filePath);
         if(urlErr){ const msg = formatErr(urlErr); console.error('getPublicUrl error:', urlErr); alert('ไม่สามารถสร้าง public URL: ' + msg); logLast('getPublicUrl error: ' + msg); return; }
         const imageUrl = publicUrlData?.publicUrl || '';
 
-        // 4) insert row with created_by so RLS can validate
+        // insert record with created_by so RLS can validate
         const { data: insData, error: insErr } = await supabaseClient.from('artworks').insert({ title, description: desc, image_url: imageUrl, published: publish, created_by: userId }).select();
         if(insErr){
           const msg = formatErr(insErr);
