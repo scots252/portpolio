@@ -1,0 +1,332 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Art Portfolio + Admin Dashboard</title>
+  <!-- Tailwind CDN for quick styling (good for prototype) -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Supabase JS (browser) -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <style>
+    /* small extra styles for aesthetic touches */
+    body { background: linear-gradient(180deg,#0f172a 0%, #07133a 60%); color: #e6eef8; }
+    .glass { background: rgba(255,255,255,0.03); backdrop-filter: blur(6px); border: 1px solid rgba(255,255,255,0.04); }
+    .art-card img { height: 220px; object-fit: cover; }
+  </style>
+</head>
+<body class="min-h-screen p-6">
+  <!--
+    INSTRUCTIONS (edit these constants below inside the <script> before using):
+    - Set SUPABASE_URL and SUPABASE_ANON_KEY to your project's values.
+      (You provided a project URL and an API key—rotate the key in production.)
+    - Create a Storage bucket named `artworks` (public or set proper RLS)
+    - Create a table `artworks` with columns:
+        id uuid primary key default uuid_generate_v4(),
+        title text,
+        description text,
+        image_url text,
+        published boolean default false,
+        created_at timestamptz default now()
+    - Use Supabase Auth to create admin user(s) (email/password)
+    - For production, add RLS policies to restrict insert/update/delete to admins
+  -->
+
+  <div class="max-w-7xl mx-auto">
+    <header class="flex items-center justify-between mb-8">
+      <div class="flex items-center gap-4">
+        <div class="w-14 h-14 rounded-lg bg-gradient-to-tr from-purple-600 to-pink-500 flex items-center justify-center text-2xl font-bold">ART</div>
+        <div>
+          <h1 class="text-2xl font-semibold">Art Portfolio</h1>
+          <p class="text-sm opacity-80">โชว์ผลงาน — พร้อมแดชบอร์ดหลังบ้านเชื่อม Supabase</p>
+        </div>
+      </div>
+      <div class="flex gap-3">
+        <button id="btn-open-gallery" class="px-4 py-2 glass rounded">Gallery</button>
+        <button id="btn-open-admin" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 rounded">Admin</button>
+      </div>
+    </header>
+
+    <!-- Main: Gallery -->
+    <main id="page-gallery" class="space-y-6">
+      <section class="grid lg:grid-cols-3 md:grid-cols-2 gap-6">
+        <!-- art cards inserted here -->
+      </section>
+      <div id="gallery-empty" class="text-center opacity-80">โหลดผลงาน...</div>
+    </main>
+
+    <!-- Admin area (hidden by default) -->
+    <section id="page-admin" class="hidden glass rounded-lg p-6 mt-6">
+      <div class="flex justify-between items-start gap-6">
+        <div class="w-80">
+          <h2 class="text-xl font-semibold mb-3">เข้าสู่ระบบผู้ดูแล</h2>
+          <form id="login-form" class="space-y-3">
+            <input id="email" placeholder="อีเมล" class="w-full p-3 rounded bg-transparent border border-white/10" />
+            <input id="password" type="password" placeholder="รหัสผ่าน" class="w-full p-3 rounded bg-transparent border border-white/10" />
+            <div class="flex gap-2">
+              <button type="submit" class="px-4 py-2 bg-emerald-600 rounded">Sign in</button>
+              <button id="btn-signout" type="button" class="px-4 py-2 bg-red-600 rounded hidden">Sign out</button>
+            </div>
+            <div id="auth-msg" class="text-sm mt-2 opacity-80"></div>
+          </form>
+        </div>
+
+        <div class="flex-1 hidden" id="admin-panel">
+          <h2 class="text-xl font-semibold mb-3">แดชบอร์ดจัดการผลงาน</h2>
+          <div id="admin-controls" class="space-y-4">
+            <form id="art-form" class="grid grid-cols-2 gap-3 items-end">
+              <input id="art-title" placeholder="ชื่อผลงาน" class="p-2 rounded bg-transparent border border-white/10 col-span-2" />
+              <textarea id="art-desc" placeholder="คำอธิบาย" class="p-2 rounded bg-transparent border border-white/10 col-span-2"></textarea>
+              <input id="art-file" type="file" accept="image/*" class="col-span-2" />
+              <label class="flex items-center gap-2 col-span-2"><input id="art-publish" type="checkbox" /> เผยแพร่</label>
+              <button id="btn-upload" class="px-4 py-2 bg-blue-600 rounded col-span-2">อัปโหลด / สร้างผลงาน</button>
+            </form>
+
+            <div>
+              <h3 class="font-semibold">รายการผลงาน (ผู้ดูแล)</h3>
+              <div id="admin-list" class="mt-3 grid md:grid-cols-2 gap-3"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <footer class="mt-10 text-sm opacity-70">หมายเหตุ: โปรดเปลี่ยน API Keys ในการใช้งานจริง และตั้ง RLS ใน Supabase เพื่อความปลอดภัย</footer>
+  </div>
+
+  <script>
+    // ============== CONFIG (edit these values) ==============
+    const SUPABASE_URL = 'https://yrivvckaeqhfcjuputem.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlyaXZ2Y2thZXFoZmNqdXB1dGVtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ0MjYzNjksImV4cCI6MjA4MDAwMjM2OX0.Hw7rtrJyXS6sClytRKSYutvW7Co5l_jmbOUOduo30u0';
+    // ======================================================
+
+    // Instantiate Supabase client correctly. The UMD script exposes a global `supabase` helper
+    // with a createClient method. Use a distinct variable name to avoid shadowing.
+    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    // helper to format errors safely
+    function formatErr(err){
+      if(!err) return '';
+      // Supabase sometimes returns an object with .message, sometimes nested, or plain string
+      if(typeof err === 'string') return err;
+      if(err.message) return err.message;
+      try{ return JSON.stringify(err); }catch(e){ return String(err); }
+    }
+
+    // UI refs
+    const gallery = document.querySelector('main#page-gallery > section');
+    const galleryEmpty = document.getElementById('gallery-empty');
+    const pageAdmin = document.getElementById('page-admin');
+    const pageGallery = document.getElementById('page-gallery');
+    const btnOpenAdmin = document.getElementById('btn-open-admin');
+    const btnOpenGallery = document.getElementById('btn-open-gallery');
+
+    // admin refs
+    const loginForm = document.getElementById('login-form');
+    const authMsg = document.getElementById('auth-msg');
+    const btnSignOut = document.getElementById('btn-signout');
+    const artForm = document.getElementById('art-form');
+    const adminList = document.getElementById('admin-list');
+    const adminControls = document.getElementById('admin-controls');
+
+    // navigation
+    btnOpenAdmin.addEventListener('click', async () => {
+      pageAdmin.classList.remove('hidden');
+      pageGallery.classList.add('hidden');
+      // check login before showing admin controls
+      try{
+        const { data } = await supabaseClient.auth.getSession();
+        if(!data || !data.session){
+          adminControls.classList.add('hidden');
+          document.getElementById('admin-panel').classList.add('hidden');
+          authMsg.textContent = 'กรุณาเข้าสู่ระบบผู้ดูแลก่อนใช้งานแดชบอร์ด';
+        } else {
+          adminControls.classList.remove('hidden');
+          document.getElementById('admin-panel').classList.remove('hidden');
+          authMsg.textContent = '';
+          await loadAdminList();
+        }
+        // ensure sign-in state is reflected
+        await checkSession();
+      }catch(err){
+        console.error(err);
+        authMsg.textContent = 'ตรวจสอบ session ผิดพลาด: ' + formatErr(err);
+      }
+    });
+
+    btnOpenGallery.addEventListener('click', () => { pageAdmin.classList.add('hidden'); pageGallery.classList.remove('hidden'); loadGallery(); });
+
+    // initial load
+    loadGallery();
+    checkSession();
+
+    // ---------------- Gallery ----------------
+    async function loadGallery(){
+      gallery.innerHTML = '';
+      galleryEmpty.textContent = 'กำลังโหลดผลงาน...';
+      try{
+        const { data, error } = await supabaseClient.from('artworks').select('*').eq('published', true).order('created_at', {ascending: false});
+        if(error){
+          const msg = formatErr(error);
+          galleryEmpty.textContent = 'เกิดข้อผิดพลาดในการโหลด: ' + msg;
+          console.error(error);
+          return;
+        }
+        if(!data || data.length === 0){ galleryEmpty.textContent = 'ยังไม่มีผลงานที่เผยแพร่'; return; }
+        galleryEmpty.textContent = '';
+        for(const art of data){
+          const card = document.createElement('article');
+          card.className = 'art-card rounded-lg overflow-hidden glass p-0';
+          card.innerHTML = `
+            <img src="${art.image_url || 'https://via.placeholder.com/600x400?text=No+Image'}" alt="${escapeHtml(art.title)}" class="w-full"/>
+            <div class="p-4">
+              <h3 class="font-semibold text-lg">${escapeHtml(art.title)}</h3>
+              <p class="text-sm mt-2 opacity-80">${escapeHtml(art.description || '')}</p>
+            </div>
+          `;
+          gallery.appendChild(card);
+        }
+      }catch(err){
+        console.error(err);
+        galleryEmpty.textContent = 'เกิดข้อผิดพลาดในการโหลด: ' + formatErr(err);
+      }
+    }
+
+    // ---------------- Auth & Admin ----------------
+    loginForm.addEventListener('submit', async (e)=>{
+      e.preventDefault();
+      const email = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value;
+      if(!email || !password){ authMsg.textContent = 'กรุณากรอกอีเมลและรหัสผ่าน'; return; }
+      authMsg.textContent = 'กำลังเข้าสู่ระบบ...';
+      try{
+        const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+        if(error){
+          const msg = formatErr(error);
+          authMsg.textContent = 'ล้มเหลว: ' + msg;
+          console.error(error);
+          return;
+        }
+        authMsg.textContent = 'เข้าสู่ระบบสำเร็จ';
+        // show admin controls after login
+        adminControls.classList.remove('hidden');
+        btnSignOut.classList.remove('hidden');
+        document.getElementById('admin-panel').classList.remove('hidden');
+        await loadAdminList();
+      }catch(err){
+        console.error(err);
+        authMsg.textContent = 'เกิดข้อผิดพลาดในการเข้าสู่ระบบ: ' + formatErr(err);
+      }
+    });
+
+    btnSignOut.addEventListener('click', async ()=>{
+      try{
+        await supabaseClient.auth.signOut();
+        authMsg.textContent = 'ออกจากระบบแล้ว';
+        btnSignOut.classList.add('hidden');
+        adminControls.classList.add('hidden');
+        adminList.innerHTML='';
+      }catch(err){
+        console.error(err);
+        authMsg.textContent = 'การออกจากระบบผิดพลาด: ' + formatErr(err);
+      }
+    });
+
+    async function checkSession(){
+      try{
+        const { data } = await supabaseClient.auth.getSession();
+        if(data && data.session){ btnSignOut.classList.remove('hidden'); } else { btnSignOut.classList.add('hidden'); }
+      }catch(err){ console.error(err); }
+    }
+
+    // create + upload
+    document.getElementById('btn-upload').addEventListener('click', async (e)=>{
+      e.preventDefault();
+      const title = document.getElementById('art-title').value.trim();
+      const desc = document.getElementById('art-desc').value.trim();
+      const fileInput = document.getElementById('art-file');
+      const publish = document.getElementById('art-publish').checked;
+      if(!title || !fileInput.files || fileInput.files.length===0){ alert('กรุณากรอกชื่อผลงานและเลือกไฟล์ภาพ'); return; }
+      const file = fileInput.files[0];
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Date.now()}-${Math.random().toString(36).slice(2,8)}.${fileExt}`;
+      try{
+        // upload file to storage
+        const up = await supabaseClient.storage.from('artworks').upload(fileName, file, {cacheControl: '3600', upsert: false});
+        if(up.error){ const msg = formatErr(up.error); alert('อัปโหลดไม่สำเร็จ: ' + msg); console.error(up.error); return; }
+        // get public URL
+        const { data: publicUrlData, error: urlErr } = await supabaseClient.storage.from('artworks').getPublicUrl(fileName);
+        if(urlErr){ const msg = formatErr(urlErr); alert('ไม่สามารถสร้าง public URL: ' + msg); console.error(urlErr); return; }
+        const imageUrl = (publicUrlData && publicUrlData.publicUrl) ? publicUrlData.publicUrl : '';
+        // insert record
+        const { error: insErr } = await supabaseClient.from('artworks').insert({ title, description: desc, image_url: imageUrl, published: publish });
+        if(insErr){ const msg = formatErr(insErr); alert('สร้างผลงานล้มเหลว: ' + msg); console.error(insErr); return; }
+        alert('อัปโหลดสำเร็จ');
+        // clear form and refresh
+        artForm.reset();
+        await loadAdminList();
+        loadGallery();
+      }catch(err){
+        console.error(err);
+        alert('เกิดข้อผิดพลาดในการอัปโหลด: ' + formatErr(err));
+      }
+    });
+
+    async function loadAdminList(){
+      adminList.innerHTML = 'กำลังโหลด...';
+      try{
+        const { data, error } = await supabaseClient.from('artworks').select('*').order('created_at', {ascending:false});
+        if(error){ const msg = formatErr(error); adminList.innerHTML = 'เกิดข้อผิดพลาด: ' + msg; console.error(error); return; }
+        adminList.innerHTML = '';
+        if(!data || data.length===0){ adminList.innerHTML = '<div class="opacity-80">ยังไม่มีผลงาน</div>'; return; }
+        for(const art of data){
+          const node = document.createElement('div');
+          node.className = 'p-3 glass rounded';
+          node.innerHTML = `
+            <div class="flex gap-3">
+              <img src="${art.image_url||'https://via.placeholder.com/120'}" class="w-28 h-20 object-cover rounded" />
+              <div class="flex-1">
+                <div class="flex justify-between items-start">
+                  <div>
+                    <div class="font-semibold">${escapeHtml(art.title)}</div>
+                    <div class="text-sm opacity-80">${escapeHtml(art.description || '')}</div>
+                  </div>
+                  <div class="text-sm opacity-80">${new Date(art.created_at).toLocaleString()}</div>
+                </div>
+                <div class="mt-2 flex gap-2">
+                  <button data-id="${art.id}" class="btn-toggle px-3 py-1 rounded bg-yellow-500">Toggle Publish</button>
+                  <button data-id="${art.id}" class="btn-delete px-3 py-1 rounded bg-red-600">Delete</button>
+                </div>
+              </div>
+            </div>
+          `;
+          adminList.appendChild(node);
+        }
+        // wire up buttons
+        document.querySelectorAll('.btn-delete').forEach(b => b.addEventListener('click', async (e)=>{
+          const id = e.currentTarget.dataset.id;
+          if(!confirm('จะลบผลงานจริงหรือไม่?')) return;
+          try{
+            const { error } = await supabaseClient.from('artworks').delete().eq('id', id);
+            if(error){ const msg = formatErr(error); alert('ลบล้มเหลว: ' + msg); console.error(error); return; }
+            await loadAdminList(); loadGallery();
+          }catch(err){ console.error(err); alert('เกิดข้อผิดพลาดขณะลบ: ' + formatErr(err)); }
+        }));
+        document.querySelectorAll('.btn-toggle').forEach(b => b.addEventListener('click', async (e)=>{
+          const id = e.currentTarget.dataset.id;
+          try{
+            const { data } = await supabaseClient.from('artworks').select('published').eq('id', id).single();
+            const next = !data.published;
+            const { error } = await supabaseClient.from('artworks').update({ published: next }).eq('id', id);
+            if(error){ const msg = formatErr(error); alert('อัปเดตล้มเหลว: ' + msg); console.error(error); return; }
+            loadAdminList(); loadGallery();
+          }catch(err){ console.error(err); alert('เกิดข้อผิดพลาดขณะอัปเดต: ' + formatErr(err)); }
+        }));
+      }catch(err){ console.error(err); adminList.innerHTML = 'เกิดข้อผิดพลาด: ' + formatErr(err); }
+    }
+
+    // util
+    function escapeHtml(s){ if(!s) return ''; return s.replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;'); }
+  </script>
+</body>
+</html>
