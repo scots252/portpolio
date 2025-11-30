@@ -1,423 +1,225 @@
 <!doctype html>
 <html lang="th">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Art Portfolio + Admin Dashboard</title>
+ <head>
+  <meta charset="UTF-8">
+  <title>Creative Portfolio Dashboard (Supabase)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <script src="https://cdn.tailwindcss.com"></script>
-  <!-- Supabase UMD -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.27.0/dist/umd/supabase.min.js"></script>
   <style>
-    body { background: linear-gradient(180deg,#0f172a 0%, #0a1a45 60%); color: #e6eef8; font-family: 'Inter', sans-serif; }
-    .glass { background: rgba(255,255,255,0.06); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.08); box-shadow: 0 4px 20px rgba(0,0,0,0.2); }
-    .art-card hover:scale-[1.02] transition-all duration-300 img { height: 240px; object-fit: cover; transition: transform 0.3s ease; }
-    pre.sql { background: rgba(0,0,0,0.35); padding: 10px; border-radius:6px; overflow:auto; }
-    .hint { background: rgba(255,255,255,0.02); padding:10px; border-radius:8px; }
-    .log { font-family: monospace; font-size: 12px; white-space: pre-wrap; }
-    .badge { background: rgba(255,255,255,0.04); padding: 2px 8px; border-radius: 999px; }
+    body{box-sizing:border-box}
+    html,body{height:100%;width:100%}
+    .app-wrapper{font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+    .scroll-area::-webkit-scrollbar{width:8px}
+    .portfolio-card{transition:transform .15s ease}
+    .portfolio-card:hover{transform:translateY(-4px)}
+    .line-clamp-2{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
   </style>
-</head>
-<body class="min-h-screen p-6">
-  <div class="max-w-7xl mx-auto">
-    <header class="flex items-center justify-between mb-8">
-      <div></div>
-      <div class="flex gap-3">
-        <button id="btn-open-gallery" class="px-4 py-2 glass rounded">Gallery</button>
-        <button id="btn-open-admin" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 rounded">Admin</button>
-      </div>
-    </header>
+ </head>
+ <body class="w-full h-full m-0 p-0 bg-slate-950 text-slate-50">
+  <div id="app" class="app-wrapper w-full h-full flex flex-col">
+   <header class="w-full flex items-center justify-between px-6 py-3 border-b border-slate-800">
+    <div class="flex items-center gap-3">
+     <div class="w-8 h-8 rounded-full bg-sky-400 flex items-center justify-center text-slate-900 font-bold">CP</div>
+     <div>
+      <div class="text-sm font-semibold">Creative Portfolio</div>
+      <div class="text-xs text-slate-400">Viewer / Admin (Supabase)</div>
+     </div>
+    </div>
+    <div class="flex items-center gap-3 text-xs">
+      <button id="logoutBtn" class="px-3 py-1 rounded-full bg-red-500 text-slate-900 hidden">Logout</button>
+      <button id="viewerModeBtn" class="px-3 py-1 rounded-full bg-slate-100 text-slate-900">Portfolio</button>
+      <button id="adminModeBtn" class="px-3 py-1 rounded-full bg-slate-900 text-slate-50">Dashboard</button>
+    </div>
+   </header>
 
-    <main id="page-gallery" class="space-y-6">
-      <section class="grid lg:grid-cols-3 md:grid-cols-2 gap-6" id="gallery-grid"></section>
-      <div id="gallery-empty" class="text-center opacity-80">โหลดผลงาน...</div>
-    </main>
+<!-- Login Modal -->
+<div id="loginModal" class="fixed inset-0 bg-black/70 flex items-center justify-center z-50 hidden">
+  <div class="bg-slate-900 p-6 rounded-xl w-80 shadow-xl border border-slate-700">
+    <h2 class="text-lg mb-3 font-semibold">เข้าสู่ระบบผู้ดูแล</h2>
+    <input id="loginEmail" placeholder="Email" class="w-full mb-2 px-3 py-2 rounded bg-slate-800 text-xs" />
+    <input id="loginPass" type="password" placeholder="Password" class="w-full mb-4 px-3 py-2 rounded bg-slate-800 text-xs" />
+    <button id="loginSubmit" class="w-full px-3 py-2 bg-emerald-500 text-slate-900 rounded text-xs">Login</button>
+    <button id="loginClose" class="w-full mt-2 px-3 py-2 bg-slate-700 rounded text-xs">Cancel</button>
+  </div>
+</div>
 
-    <section id="page-admin" class="hidden glass rounded-lg p-6 mt-6">
-      <div class="flex justify-between items-start gap-6">
-        <div class="w-80">
-          <h2 class="text-xl font-semibold mb-3">เข้าสู่ระบบผู้ดูแล</h2>
-          <form id="login-form" class="space-y-3">
-            <input id="email" placeholder="อีเมล" class="w-full p-3 rounded bg-transparent border border-white/10" />
-            <input id="password" type="password" placeholder="รหัสผ่าน" class="w-full p-3 rounded bg-transparent border border-white/10" />
-            <div class="flex gap-2">
-              <button type="submit" class="px-4 py-2 bg-emerald-600 rounded">Sign in</button>
-              <button id="btn-signout" type="button" class="px-4 py-2 bg-red-600 rounded hidden">Sign out</button>
-            </div>
-            <div id="auth-msg" class="text-sm mt-2 opacity-80"></div>
-          </form>
-        </div>
-
-        <div class="flex-1 hidden" id="admin-panel">
-          <h2 class="text-xl font-semibold mb-3">แดชบอร์ดจัดการผลงาน</h2>
-          <div id="admin-controls" class="space-y-4">
-            <form id="art-form" class="grid grid-cols-2 gap-3 items-end">
-              <input id="art-title" placeholder="ชื่อผลงาน" class="p-2 rounded bg-transparent border border-white/10 col-span-2" />
-              <textarea id="art-desc" placeholder="คำอธิบาย" class="p-2 rounded bg-transparent border border-white/10 col-span-2"></textarea>
-
-              <!-- Source selector: file (local) or link (URL) -->
-              <div class="col-span-2 flex items-center gap-4">
-                <label class="flex items-center gap-2"><input type="radio" name="art-source" value="file" id="art-source-file" checked /> ไฟล์จากเครื่อง</label>
-                <label class="flex items-center gap-2"><input type="radio" name="art-source" value="link" id="art-source-link" /> ใช้ลิงก์ (URL)</label>
-              </div>
-
-              <!-- File input -->
-              <input id="art-file" type="file" accept="image/*" class="col-span-2" />
-
-              <!-- URL input (hidden by default) -->
-              <input id="art-url" type="url" placeholder="วางลิงก์ภาพ (https://...)" class="p-2 rounded bg-transparent border border-white/10 col-span-2 hidden" />
-
-              <label class="flex items-center gap-2 col-span-2"><input id="art-publish" type="checkbox" /> เผยแพร่</label>
-              <button id="btn-upload" class="px-4 py-2 bg-blue-600 rounded col-span-2">อัปโหลด / สร้างผลงาน</button>
-            </form>
-
-            <div>
-              <h3 class="font-semibold">รายการผลงาน (ผู้ดูแล)</h3>
-              <div id="admin-list" class="mt-3 grid md:grid-cols-2 gap-3"></div>
-            </div>
-
-            <div id="rls-help" class="mt-4 text-sm opacity-80 hidden">
-              <div class="hint">
-                <p class="font-semibold">ถ้าเจอข้อผิดพลาด RLS (row-level security) หรือปัญหา bucket</p>
-                <p>รัน SQL ชุดนี้ใน Supabase → SQL Editor หรือสร้าง Storage policies ตามคำแนะนำด้านล่าง</p>
-                <pre class="sql">-- Database (artworks table)
-alter table if exists public.artworks add column if not exists created_by uuid references auth.users(id);
-alter table public.artworks enable row level security;
-
--- Allow authenticated users to insert rows where created_by = auth.uid()
-create policy "users can insert own artworks" on public.artworks for insert to authenticated with check (auth.uid() = created_by);
-create policy "users can select own artworks" on public.artworks for select to authenticated using (auth.uid() = created_by);
-
--- Storage policies (in Storage → Policies for bucket 'artworks')
--- In the Storage UI you MUST NOT paste a full CREATE POLICY statement.
--- Instead, choose Allowed operations: INSERT + upload (for upload), Target role: authenticated,
--- and in the Policy definition box enter only the boolean expression shown below.
-
--- For upload (INSERT + upload) enter this in Policy definition box:
-bucket_id = 'artworks'
-
--- For read (SELECT) enter this in Policy definition box:
-bucket_id = 'artworks'
-                </pre>
-                <p class="mt-2">ตรวจให้แน่ใจว่า<strong>ชื่อบัคเก็ตเป็นตัวพิมพ์เล็ก</strong> <span class="badge">artworks</span> และ Policy definition ใน UI ใส่เฉพาะเงื่อนไขเช่น <code>bucket_id = 'artworks'</code></p>
-              </div>
-            </div>
-
-            <div id="last-log" class="mt-3 text-sm opacity-80 log"></div>
+   <main class="flex-1 overflow-hidden flex">
+    <!-- Left: Viewer -->
+    <section id="viewer" class="flex-1 overflow-auto p-6 max-w-5xl mx-auto">
+      <div id="hero" class="relative mb-6">
+        <div id="hero-banner" class="w-full h-48 bg-gradient-to-r from-sky-500 to-fuchsia-500 rounded-lg"></div>
+        <div class="-mt-16 flex items-end gap-4">
+          <div class="w-28 h-28 rounded-full border-4 border-slate-950 bg-slate-800 overflow-hidden" id="avatarWrap">🎨</div>
+          <div>
+            <h1 id="hero-name" class="text-2xl font-semibold">ชื่อศิลปิน</h1>
+            <p id="hero-tagline" class="text-slate-300">Tagline</p>
           </div>
         </div>
       </div>
+
+      <nav class="mb-4">
+        <button id="navWork" class="mr-2 px-3 py-1 bg-slate-800 rounded">งาน</button>
+        <button id="navFav" class="px-3 py-1 bg-slate-800 rounded">ความชื่นชอบ</button>
+      </nav>
+
+      <div id="contentArea"></div>
     </section>
 
-    <footer class="mt-10 text-sm opacity-70">หมายเหตุ: โปรดเปลี่ยน API Keys ในการใช้งานจริง และตั้ง RLS ใน Supabase เพื่อความปลอดภัย</footer>
+    <!-- Right: Admin -->
+    <aside id="admin" class="w-[480px] bg-slate-900 border-l border-slate-800 p-6 overflow-auto hidden">
+      <h2 class="text-lg mb-3">Dashboard (Supabase)</h2>
+
+      <hr class="border-slate-800 my-4" />
+
+      <section class="space-y-3">
+        <h3 class="text-sm">Hero / Profile</h3>
+        <input id="adminName" placeholder="Name" class="w-full px-3 py-2 rounded bg-slate-800 text-xs" />
+        <input id="adminTagline" placeholder="Tagline" class="w-full px-3 py-2 rounded bg-slate-800 text-xs" />
+        <input id="adminBanner" placeholder="Banner URL" class="w-full px-3 py-2 rounded bg-slate-800 text-xs" />
+        <input id="adminProfile" placeholder="Profile URL" class="w-full px-3 py-2 rounded bg-slate-800 text-xs" />
+        <div class="flex gap-2">
+          <button id="saveHero" class="px-3 py-2 bg-emerald-500 rounded text-slate-900 text-xs">Save Hero</button>
+          <button id="loadHero" class="px-3 py-2 bg-slate-700 rounded text-xs">Load</button>
+        </div>
+      </section>
+
+      <hr class="border-slate-800 my-4" />
+
+      <section class="space-y-3">
+        <h3 class="text-sm">Works (CRUD)</h3>
+        <input id="workTitle" placeholder="Title" class="w-full px-3 py-2 rounded bg-slate-800 text-xs" />
+        <input id="workCategory" placeholder="Category" class="w-full px-3 py-2 rounded bg-slate-800 text-xs" />
+        <input id="workImage" placeholder="Image URL" class="w-full px-3 py-2 rounded bg-slate-800 text-xs" />
+        <textarea id="workDesc" placeholder="Description" class="w-full px-3 py-2 rounded bg-slate-800 text-xs"></textarea>
+        <div class="flex gap-2">
+          <button id="createWork" class="px-3 py-2 bg-sky-500 rounded text-slate-900 text-xs">Create</button>
+          <button id="updateWork" class="px-3 py-2 bg-emerald-500 rounded text-slate-900 text-xs" disabled>Update</button>
+          <button id="cancelWork" class="px-3 py-2 bg-slate-700 rounded text-xs">Clear</button>
+        </div>
+        <div id="workList" class="mt-3 space-y-2 text-xs"></div>
+      </section>
+
+      <hr class="border-slate-800 my-4" />
+
+      <div class="text-xs text-slate-400">
+    </aside>
+   </main>
+
+   <footer class="border-t border-slate-800 p-3 text-xs text-slate-400">Made with ❤️ — Supabase mode</footer>
   </div>
 
   <script>
-    // ============== CONFIG ==============
-    const SUPABASE_URL = 'https://yrivvckaeqhfcjuputem.supabase.co';
-    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlyaXZ2Y2thZXFoZmNqdXB1dGVtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ0MjYzNjksImV4cCI6MjA4MDAwMjM2OX0.Hw7rtrJyXS6sClytRKSYutvW7Co5l_jmbOUOduo30u0';
-    // MUST match your Supabase Storage bucket name exactly (case-sensitive)
-    const BUCKET_NAME = 'artworks';
-    const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
-    const ALLOWED_MIMES = ['image/jpeg','image/png','image/webp'];
-    // ======================================
+    // --- Supabase integration & App logic (cleaned)
+    let supabase = null;
+    // default values — you already provided these; safe to keep here for preview
+    let SUPABASE_URL = "https://yrivvckaeqhfcjuputem.supabase.co";
+    let SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlyaXZ2Y2thZXFoZmNqdXB1dGVtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ0MjYzNjksImV4cCI6MjA4MDAwMjM2OX0.Hw7rtrJyXS6sClytRKSYutvW7Co5l_jmbOUOduo30u0";
+    let editingWorkId = null;
 
-    // instantiate properly
-    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    const setStatus = (t) => { const el = document.getElementById('status'); if(el) el.textContent = t || ''; };
 
-    // Improved error formatter: prints nested objects, status, message
-    function formatErr(err){
-      if(!err) return '';
-      if(typeof err === 'string') return err;
-      // If it's Supabase error object
-      if(err.message && err.status) return `${err.message} (status: ${err.status})`;
-      if(err.error && err.error.message) return `${err.error.message}`;
-      if(err.message) return err.message;
-      try{ return JSON.stringify(err, Object.getOwnPropertyNames(err), 2); }catch(e){ return String(err); }
-    }
+    // UI refs (some will be null until DOM ready)
+    let adminPanel, viewerBtn, adminBtn, connectBtn;
 
-    // UI refs
-    const galleryGrid = document.getElementById('gallery-grid');
-    const galleryEmpty = document.getElementById('gallery-empty');
-    const pageAdmin = document.getElementById('page-admin');
-    const pageGallery = document.getElementById('page-gallery');
-    const btnOpenAdmin = document.getElementById('btn-open-admin');
-    const btnOpenGallery = document.getElementById('btn-open-gallery');
-
-    const loginForm = document.getElementById('login-form');
-    const authMsg = document.getElementById('auth-msg');
-    const btnSignOut = document.getElementById('btn-signout');
-    const artForm = document.getElementById('art-form');
-    const adminList = document.getElementById('admin-list');
-    const adminControls = document.getElementById('admin-controls');
-    const rlsHelp = document.getElementById('rls-help');
-    const lastLog = document.getElementById('last-log');
-
-    function logLast(txt){ lastLog.textContent = txt; console.log('APP LOG:', txt); }
-
-    btnOpenAdmin.addEventListener('click', async () => {
-      pageAdmin.classList.remove('hidden');
-      pageGallery.classList.add('hidden');
+    function connectSupabase(url, key){
       try{
-        const { data } = await supabaseClient.auth.getSession();
-        if(!data || !data.session){
-          adminControls.classList.add('hidden');
-          document.getElementById('admin-panel').classList.add('hidden');
-          authMsg.textContent = 'กรุณาเข้าสู่ระบบผู้ดูแลก่อนใช้งานแดชบอร์ด';
-        } else {
-          adminControls.classList.remove('hidden');
-          document.getElementById('admin-panel').classList.remove('hidden');
-          authMsg.textContent = '';
-          await loadAdminList();
-        }
-        await checkSession();
-      }catch(err){
-        console.error(err);
-        authMsg.textContent = 'ตรวจสอบ session ผิดพลาด: ' + formatErr(err);
-      }
-    });
-
-    btnOpenGallery.addEventListener('click', () => { pageAdmin.classList.add('hidden'); pageGallery.classList.remove('hidden'); loadGallery(); });
-
-    // initial load
-    loadGallery();
-    checkSession();
-
-    async function loadGallery(){
-      galleryGrid.innerHTML = '';
-      galleryEmpty.textContent = 'กำลังโหลดผลงาน...';
-      try{
-        const { data, error } = await supabaseClient.from('artworks').select('*').eq('published', true).order('created_at', {ascending: false});
-        if(error){
-          const msg = formatErr(error);
-          galleryEmpty.textContent = 'เกิดข้อผิดพลาดในการโหลด: ' + msg;
-          console.error(error);
-          return;
-        }
-        if(!data || data.length === 0){ galleryEmpty.textContent = 'ยังไม่มีผลงานที่เผยแพร่'; return; }
-        galleryEmpty.textContent = '';
-        data.forEach(art => {
-          const card = document.createElement('article');
-          card.className = 'art-card rounded-lg overflow-hidden glass p-0';
-          card.innerHTML = `
-            ${art.image_url && !art.image_url.match(/\.(jpg|jpeg|png|webp)$/i) ? `<iframe src="${art.image_url}" class="w-full h-60 bg-black/20"></iframe>` : `<img src="${art.image_url || 'https://via.placeholder.com/600x400?text=No+Image'}" alt="${escapeHtml(art.title)}" class="w-full"/>`}
-            <div class="p-4">
-              <h3 class="font-semibold text-lg">${escapeHtml(art.title)}</h3>
-              <p class=\"text-sm mt-2 opacity-80\">${escapeHtml(art.description || '')}</p>
-              ${art.image_url?.startsWith('http') ? `<a href=\"${art.image_url}\" target=\"_blank\" class=\"text-blue-400 underline text-sm block mt-2\">🔗 เปิดลิงก์ต้นฉบับ</a>` : ''}
-            </div>
-          `;
-          galleryGrid.appendChild(card);
-        });
-      }catch(err){
-        console.error(err);
-        galleryEmpty.textContent = 'เกิดข้อผิดพลาดในการโหลด: ' + formatErr(err);
+        supabase = window.supabase.createClient(url, key);
+        return true;
+      }catch(e){
+        console.error('connect error', e);
+        return false;
       }
     }
 
-    loginForm.addEventListener('submit', async (e)=>{
-      e.preventDefault();
-      const email = document.getElementById('email').value.trim();
-      const password = document.getElementById('password').value;
-      if(!email || !password){ authMsg.textContent = 'กรุณากรอกอีเมลและรหัสผ่าน'; return; }
-      authMsg.textContent = 'กำลังเข้าสู่ระบบ...';
-      try{
-        const resp = await supabaseClient.auth.signInWithPassword({ email, password });
-        if(resp.error){ const msg = formatErr(resp.error); authMsg.textContent = 'ล้มเหลว: ' + msg; console.error(resp.error); return; }
-        // resp.data.session available when success
-        authMsg.textContent = 'เข้าสู่ระบบสำเร็จ';
-        adminControls.classList.remove('hidden');
-        btnSignOut.classList.remove('hidden');
-        document.getElementById('admin-panel').classList.remove('hidden');
-        await loadAdminList();
-      }catch(err){ console.error(err); authMsg.textContent = 'เกิดข้อผิดพลาดในการเข้าสู่ระบบ: ' + formatErr(err); }
+    // CRUD helpers
+    async function createWork(data){ setStatus('creating work...'); const { data: d, error } = await supabase.from('works').insert([data]).select(); if(error){ console.error(error); setStatus('error'); alert('Create error: '+error.message); return null;} setStatus('created'); await loadWorks(); return d && d[0]; }
+    async function updateWorkInDb(id, data){ setStatus('updating...'); const { data: d, error } = await supabase.from('works').update(data).eq('id', id).select(); if(error){ console.error(error); setStatus('error'); alert('Update error: '+error.message); return null;} setStatus('updated'); await loadWorks(); return d && d[0]; }
+    async function deleteWorkInDb(id){ if(!confirm('ลบผลงานใช่หรือไม่?')) return; setStatus('deleting...'); const { error } = await supabase.from('works').delete().eq('id', id); if(error){ console.error(error); setStatus('error'); alert('Delete error: '+error.message); return; } setStatus('deleted'); await loadWorks(); }
+
+    async function loadWorks(){ setStatus('loading works...'); const { data, error } = await supabase.from('works').select('*').order('created_at', {ascending:false}); if(error){ console.error(error); setStatus('error'); return; } renderWorkList(data||[]); renderWorkGrid(data||[]); setStatus('works loaded'); }
+
+    async function saveHero(){ const name = document.getElementById('adminName').value.trim(); const tagline = document.getElementById('adminTagline').value.trim(); const banner = document.getElementById('adminBanner').value.trim(); const profile = document.getElementById('adminProfile').value.trim(); setStatus('saving hero...'); const payload = { id: 1, name, tagline, banner_url: banner, profile_url: profile }; const { data, error } = await supabase.from('config_main').upsert(payload).select(); if(error){ console.error(error); setStatus('error'); alert('Save hero error: '+error.message); return; } await loadHero(); setStatus('hero saved'); alert('บันทึกเรียบร้อย'); }
+
+    async function loadHero(){ const res = await supabase.from('config_main').select('*').eq('id',1).limit(1).maybeSingle(); if(res.error){ console.warn(res.error); } const data = res.data; if(data){ document.getElementById('hero-name').textContent = data.name || 'ชื่อศิลปิน'; document.getElementById('hero-tagline').textContent = data.tagline || ''; if(data.banner_url) document.getElementById('hero-banner').style.backgroundImage = `url('${data.banner_url}')`; if(data.profile_url) document.getElementById('avatarWrap').innerHTML = `<img src="${data.profile_url}" class="w-full h-full object-cover"/>`; document.getElementById('adminName').value = data.name||''; document.getElementById('adminTagline').value = data.tagline||''; document.getElementById('adminBanner').value = data.banner_url||''; document.getElementById('adminProfile').value = data.profile_url||''; } }
+
+    function clearWorkForm(){ document.getElementById('workTitle').value=''; document.getElementById('workCategory').value=''; document.getElementById('workImage').value=''; document.getElementById('workDesc').value=''; editingWorkId = null; document.getElementById('updateWork').disabled = true; }
+
+    function renderWorkList(items){ const el = document.getElementById('workList'); el.innerHTML=''; items.forEach(it=>{ const row = document.createElement('div'); row.className='flex items-center justify-between p-2 bg-slate-800 rounded'; row.innerHTML = `<div class="min-w-0"><div class="text-sm">${escapeHtml(it.title||'')}</div><div class="text-xs text-slate-400">${escapeHtml(it.category||'')}</div></div><div class="flex gap-2"><button data-id="${it.id}" class="editBtn px-2 py-1 bg-slate-100 text-slate-900 text-xs rounded">แก้ไข</button><button data-id="${it.id}" class="delBtn px-2 py-1 bg-slate-700 text-xs rounded">ลบ</button></div>`; el.appendChild(row); }); Array.from(el.querySelectorAll('.editBtn')).forEach(b=>b.onclick=()=>onEditWork(b.dataset.id, items.find(x=>x.id==b.dataset.id))); Array.from(el.querySelectorAll('.delBtn')).forEach(b=>b.onclick=()=>deleteWorkInDb(b.dataset.id)); }
+
+    function onEditWork(id, data){ editingWorkId = id; document.getElementById('workTitle').value = data.title||''; document.getElementById('workCategory').value = data.category||''; document.getElementById('workImage').value = data.image_url||''; document.getElementById('workDesc').value = data.description||''; document.getElementById('updateWork').disabled=false; }
+
+    function renderWorkGrid(items){ const grid = document.getElementById('contentArea'); const html = ['<div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">']; items.forEach(it=>{ html.push(`<article class="bg-slate-900 p-3 rounded-lg"><div class="w-full h-44 bg-slate-800 overflow-hidden mb-2">${it.image_url?`<img src='${escapeAttr(it.image_url)}' class='w-full h-full object-cover'/>`:'<div class="w-full h-full flex items-center justify-center text-slate-500">No image</div>'}</div><h4 class="font-semibold">${escapeHtml(it.title||'')}</h4><p class="text-xs text-slate-400">${escapeHtml(it.category||'')}</p><p class="text-xs text-slate-300 mt-2 line-clamp-2">${escapeHtml(it.description||'')}</p></article>`); }); html.push('</div>'); grid.innerHTML = html.join(''); }
+
+    // Utils
+    function escapeHtml(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+    function escapeAttr(s){ return String(s).replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+
+    async function loadAll(){ if(!supabase){ setStatus('no supabase'); return; } await loadHero(); await loadWorks(); }
+
+    // DOM ready init
+    document.addEventListener('DOMContentLoaded', async ()=>{
+      adminPanel = document.getElementById('admin'); viewerBtn = document.getElementById('viewerModeBtn'); adminBtn = document.getElementById('adminModeBtn'); // connectBtn removed
+
+      // removed credentials populate
+      connectSupabase(SUPABASE_URL, SUPABASE_KEY); setStatus('connected');
+      await loadAll();
+
+      // Handlers
+      // removed credentials UI').addEventListener('click', ()=>{ localStorage.removeItem('SUPABASE_URL'); localStorage.removeItem('SUPABASE_KEY'); document.getElementById('supabaseUrl').value=''; document.getElementById('supabaseKey').value=''; setStatus('credentials cleared'); });
+      // auto connect handled below);
+
+      // auth - show login modal when admin requested and not logged in
+      logoutBtn = document.getElementById('logoutBtn');
+
+      adminBtn.addEventListener('click', async ()=>{
+        if(!supabase){ alert('ยังไม่ได้เชื่อมต่อ Supabase'); return; }
+        const { data: userData, error } = await supabase.auth.getUser();
+        const user = userData && userData.user ? userData.user : null;
+        if(!user){ document.getElementById('loginModal').classList.remove('hidden'); return; }
+        adminPanel.classList.remove('hidden'); document.getElementById('viewer').classList.add('hidden'); logoutBtn.classList.remove('hidden');
+      });
+
+      viewerBtn.addEventListener('click', ()=>{ adminPanel.classList.add('hidden'); document.getElementById('viewer').classList.remove('hidden'); });
+
+      // login modal handlers
+      logoutBtn.addEventListener('click', async ()=>{
+        await supabase.auth.signOut();
+        adminPanel.classList.add('hidden');
+        logoutBtn.classList.add('hidden');
+        alert('ออกจากระบบแล้ว');
+      });
+
+      document.getElementById('loginSubmit').addEventListener('click', async ()=>{
+        const email = document.getElementById('loginEmail').value.trim();
+        const pass = document.getElementById('loginPass').value.trim();
+        if(!email || !pass) return alert('กรุณากรอก Email และ Password');
+        const { data, error } = await supabase.auth.signInWithPassword({ email, password: pass });
+        if(error){ alert('เข้าสู่ระบบไม่สำเร็จ: '+error.message); return; }
+        document.getElementById('loginModal').classList.add('hidden'); adminPanel.classList.remove('hidden'); await loadAll();
+      });
+      document.getElementById('loginClose').addEventListener('click', ()=>document.getElementById('loginModal').classList.add('hidden'));
+
+      // admin hero buttons
+      document.getElementById('saveHero').addEventListener('click', async ()=>{ if(!supabase) return alert('ไม่เชื่อมต่อ Supabase'); await saveHero(); });
+      document.getElementById('loadHero').addEventListener('click', async ()=>{ if(!supabase) return alert('ไม่เชื่อมต่อ Supabase'); await loadHero(); });
+
+      // works form
+      document.getElementById('createWork').addEventListener('click', async ()=>{ if(!supabase) return alert('ไม่เชื่อมต่อ Supabase'); const title = document.getElementById('workTitle').value.trim(); const category = document.getElementById('workCategory').value.trim(); const image_url = document.getElementById('workImage').value.trim(); const description = document.getElementById('workDesc').value.trim(); if(!title) return alert('กรุณากรอกชื่อผลงาน'); await createWork({title, category, image_url, description}); clearWorkForm(); });
+      document.getElementById('updateWork').addEventListener('click', async ()=>{ if(!supabase) return alert('ไม่เชื่อมต่อ Supabase'); if(!editingWorkId) return alert('ไม่มีรายการที่จะแก้ไข'); const title = document.getElementById('workTitle').value.trim(); const category = document.getElementById('workCategory').value.trim(); const image_url = document.getElementById('workImage').value.trim(); const description = document.getElementById('workDesc').value.trim(); await updateWorkInDb(editingWorkId,{title, category, image_url, description}); clearWorkForm(); });
+      document.getElementById('cancelWork').addEventListener('click', ()=>clearWorkForm());
+
+      // nav
+      document.getElementById('navWork').addEventListener('click', async ()=>{ if(!supabase) return alert('Not connected'); await loadWorks(); });
+      document.getElementById('navFav').addEventListener('click', ()=>{ document.getElementById('contentArea').innerHTML='<p class="text-slate-400">Favorites viewer - implement similarly to works.</p>'; });
+
     });
 
-    btnSignOut.addEventListener('click', async ()=>{
-      try{ await supabaseClient.auth.signOut(); authMsg.textContent = 'ออกจากระบบแล้ว'; btnSignOut.classList.add('hidden'); adminControls.classList.add('hidden'); adminList.innerHTML=''; }catch(err){ console.error(err); authMsg.textContent = 'การออกจากระบบผิดพลาด: ' + formatErr(err); }
-    });
+    // IMPORTANT: Database schema expected (create these tables in Supabase):
+    // Table: config_main (id int primary key, name text, tagline text, banner_url text, profile_url text, created_at timestamptz default now())
+    // Table: works (id serial primary key, title text, category text, image_url text, description text, created_at timestamptz default now())
 
-    async function checkSession(){
-      try{ const { data } = await supabaseClient.auth.getSession(); if(data && data.session){ btnSignOut.classList.remove('hidden'); } else { btnSignOut.classList.add('hidden'); } }catch(err){ console.error(err); }
-    }
-
-    // --- UI: toggle between File input and URL input when source radio changes ---
-    const artSourceFile = document.getElementById('art-source-file');
-    const artSourceLink = document.getElementById('art-source-link');
-    const artUrlInput = document.getElementById('art-url');
-    const artFileInput = document.getElementById('art-file');
-
-    function toggleSourceInputs(){
-      const source = document.querySelector('input[name="art-source"]:checked')?.value || 'file';
-      if(source === 'link'){
-        artUrlInput.classList.remove('hidden');
-        artFileInput.classList.add('hidden');
-        artUrlInput.focus();
-      } else {
-        artUrlInput.classList.add('hidden');
-        artFileInput.classList.remove('hidden');
-      }
-    }
-
-    // initialize and wire events
-    toggleSourceInputs();
-    document.querySelectorAll('input[name="art-source"]').forEach(r => r.addEventListener('change', toggleSourceInputs));
-
-    // Upload handler - simplified to target the confirmed bucket name 'artworks' (supports file OR external URL)
-    document.getElementById('btn-upload').addEventListener('click', async (e)=>{
-      e.preventDefault();
-      rlsHelp.classList.add('hidden');
-
-      const title = document.getElementById('art-title').value.trim();
-      const desc = document.getElementById('art-desc').value.trim();
-      const fileInput = document.getElementById('art-file');
-      const urlInput = document.getElementById('art-url');
-      const publish = document.getElementById('art-publish').checked;
-      const source = document.querySelector('input[name="art-source"]:checked')?.value || 'file';
-
-      if(!title){ alert('กรุณากรอกชื่อผลงาน'); return; }
-      if(source === 'file' && (!fileInput.files || fileInput.files.length===0)){ alert('กรุณาเลือกไฟล์ภาพจากเครื่อง'); return; }
-      if(source === 'link' && !urlInput.value.trim()){ alert('กรุณาวางลิงก์ภาพ'); return; }
-
-      // ensure authenticated (for inserting record)
-      const sessionResp = await supabaseClient.auth.getSession();
-      const userId = sessionResp?.data?.session?.user?.id || null;
-      if(!userId){ alert('คุณต้องล็อกอินก่อนใช้งาน'); return; }
-
-      try{
-        let imageUrl = '';
-
-        if(source === 'file'){
-          const file = fileInput.files[0];
-          const fileExt = file.name.split('.').pop();
-          const filePath = `${userId}/${Date.now()}-${Math.random().toString(36).slice(2,8)}.${fileExt}`;
-
-          // validate file
-          if(file.size > MAX_FILE_SIZE){ alert('ไฟล์ใหญ่เกินไป — จำกัดที่ 10 MB'); return; }
-          if(!ALLOWED_MIMES.includes(file.type)){
-            alert('ชนิดไฟล์ไม่รองรับ — อัปโหลดได้เฉพาะ jpg/png/webp');
-            return;
-          }
-
-          logLast(`Uploading to bucket: ${BUCKET_NAME} path: ${filePath}`);
-          const { data: upData, error: upErr } = await supabaseClient.storage.from(BUCKET_NAME).upload(filePath, file, { cacheControl: '3600', upsert: false });
-          if(upErr){
-            const msg = formatErr(upErr);
-            console.error('Storage upload error object:', upErr);
-            if(upErr.status === 404 || msg.toLowerCase().includes('bucket')){
-              alert('อัปโหลดไม่สำเร็จ — บัคเก็ตไม่พบ (ตรวจชื่อบัคเก็ตใน Supabase Storage ว่าเป็น "artworks")');
-              rlsHelp.classList.remove('hidden');
-              logLast('Upload failed: bucket not found.');
-              return;
-            }
-            if(upErr.status === 403 || msg.toLowerCase().includes('permission')){
-              alert('อัปโหลดไม่สำเร็จ — สิทธิ์ไม่พอ (ตรวจ Storage policies และ RLS ว่ารองรับการอัปโหลดจากผู้ที่ล็อกอิน)');
-              rlsHelp.classList.remove('hidden');
-              logLast('Upload failed: permission denied. ' + msg);
-              return;
-            }
-            alert('อัปโหลดไม่สำเร็จ: ' + msg);
-            rlsHelp.classList.remove('hidden');
-            logLast('Upload failed: ' + msg);
-            return;
-          }
-
-          const { data: publicUrlData, error: urlErr } = await supabaseClient.storage.from(BUCKET_NAME).getPublicUrl(filePath);
-          if(urlErr){ const msg = formatErr(urlErr); console.error('getPublicUrl error:', urlErr); alert('ไม่สามารถสร้าง public URL: ' + msg); logLast('getPublicUrl error: ' + msg); return; }
-          imageUrl = publicUrlData?.publicUrl || '';
-        } else {
-          // use provided external link directly
-          imageUrl = urlInput.value.trim();
-          // basic validation
-          try{ new URL(imageUrl); }catch(e){ alert('ลิงก์ไม่ถูกต้อง'); return; }
-        }
-
-        // insert record with created_by so RLS can validate
-        const { data: insData, error: insErr } = await supabaseClient.from('artworks').insert({ title, description: desc, image_url: imageUrl, published: publish, created_by: userId }).select();
-        if(insErr){
-          const msg = formatErr(insErr);
-          console.error('Insert error object:', insErr);
-          alert('สร้างผลงานล้มเหลว: ' + msg);
-          if(msg.toLowerCase().includes('row-level') || msg.toLowerCase().includes('row level')){
-            rlsHelp.classList.remove('hidden');
-          }
-          logLast('Insert failed: ' + msg);
-          return;
-        }
-
-        alert('บันทึกผลงานสำเร็จ');
-        artForm.reset();
-        // reset UI: show file input by default
-        document.getElementById('art-source-file').checked = true;
-        document.getElementById('art-url').classList.add('hidden');
-        document.getElementById('art-file').classList.remove('hidden');
-
-        await loadAdminList();
-        loadGallery();
-
-      }catch(err){
-        console.error('Unexpected error during upload:', err);
-        alert('เกิดข้อผิดพลาดในการบันทึก: ' + formatErr(err));
-        rlsHelp.classList.remove('hidden');
-        logLast('Unexpected upload error: ' + formatErr(err));
-      }
-    });
-
-    async function loadAdminList(){
-      adminList.innerHTML = 'กำลังโหลด...';
-      try{
-        const { data, error } = await supabaseClient.from('artworks').select('*').order('created_at', {ascending:false});
-        if(error){ const msg = formatErr(error); adminList.innerHTML = 'เกิดข้อผิดพลาด: ' + msg; console.error(error); return; }
-        adminList.innerHTML = '';
-        if(!data || data.length===0){ adminList.innerHTML = '<div class="opacity-80">ยังไม่มีผลงาน</div>'; return; }
-        for(const art of data){
-          const node = document.createElement('div');
-          node.className = 'p-3 glass rounded';
-          node.innerHTML = `
-            <div class="flex gap-3">
-              <img src="${art.image_url||'https://via.placeholder.com/120'}" class="w-28 h-20 object-cover rounded" />
-              <div class="flex-1">
-                <div class="flex justify-between items-start">
-                  <div>
-                    <div class="font-semibold">${escapeHtml(art.title)}</div>
-                    <div class="text-sm opacity-80">${escapeHtml(art.description || '')}</div>
-                  </div>
-                  <div class="text-sm opacity-80">${new Date(art.created_at).toLocaleString()}</div>
-                </div>
-                <div class="mt-2 flex gap-2 items-center">
-                  <span class="px-2 py-1 text-xs rounded bg-white/10">สถานะ: ${art.published ? 'เปิดอยู่' : 'ปิดอยู่'}</span>
-                  <button data-id="${art.id}" class="btn-toggle px-3 py-1 rounded bg-yellow-500">สลับสถานะ</button>
-                  <button data-id="${art.id}" class="btn-delete px-3 py-1 rounded bg-red-600">Delete</button>
-                </div>
-              </div>
-            </div>
-          `;
-          adminList.appendChild(node);
-        }
-        // wire up buttons
-        document.querySelectorAll('.btn-delete').forEach(b => b.addEventListener('click', async (e)=>{
-          const id = e.currentTarget.dataset.id;
-          if(!confirm('จะลบผลงานจริงหรือไม่?')) return;
-          try{
-            const { error } = await supabaseClient.from('artworks').delete().eq('id', id);
-            if(error){ const msg = formatErr(error); alert('ลบล้มเหลว: ' + msg); console.error(error); return; }
-            await loadAdminList(); loadGallery();
-          }catch(err){ console.error(err); alert('เกิดข้อผิดพลาดขณะลบ: ' + formatErr(err)); }
-        }));
-        document.querySelectorAll('.btn-toggle').forEach(b => b.addEventListener('click', async (e)=>{
-          const id = e.currentTarget.dataset.id;
-          try{
-            const { data } = await supabaseClient.from('artworks').select('published').eq('id', id).single();
-            const next = !data.published;
-            const { error } = await supabaseClient.from('artworks').update({ published: next }).eq('id', id);
-            if(error){ const msg = formatErr(error); alert('อัปเดตล้มเหลว: ' + msg); console.error(error); return; }
-            loadAdminList(); loadGallery();
-          }catch(err){ console.error(err); alert('เกิดข้อผิดพลาดขณะอัปเดต: ' + formatErr(err)); }
-        }));
-      }catch(err){ console.error(err); adminList.innerHTML = 'เกิดข้อผิดพลาด: ' + formatErr(err); }
-    }
-
-    // util
-    function escapeHtml(s){ if(!s) return ''; return s.replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;'); }
+    // If you want, I can create SQL migration statements for these tables — tell me and I'll add them here.
   </script>
-</body>
+ </body>
 </html>
