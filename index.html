@@ -174,7 +174,7 @@ bucket_id = 'artworks'
       galleryGrid.innerHTML = '';
       galleryEmpty.textContent = 'กำลังโหลดผลงาน...';
       try{
-        const { data, error } = await supabaseClient.from('artworks').select('*').eq('published', true).order('created_at', {ascending: false});
+        const { data, error } = await supabaseClient.from('artworks').select('*').order('created_at', {ascending: false});
         if(error){
           const msg = formatErr(error);
           galleryEmpty.textContent = 'เกิดข้อผิดพลาดในการโหลด: ' + msg;
