@@ -5,12 +5,12 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Art Portfolio + Admin Dashboard</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <!-- Supabase (UMD) -->
+  <!-- Supabase UMD -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <style>
-    body { background: linear-gradient(180deg,#0f172a 0%, #07133a 60%); color: #e6eef8; }
-    .glass { background: rgba(255,255,255,0.03); backdrop-filter: blur(6px); border: 1px solid rgba(255,255,255,0.04); }
-    .art-card img { height: 220px; object-fit: cover; }
+    body { background: linear-gradient(180deg,#0f172a 0%, #0a1a45 60%); color: #e6eef8; font-family: 'Inter', sans-serif; }
+    .glass { background: rgba(255,255,255,0.06); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.08); box-shadow: 0 4px 20px rgba(0,0,0,0.2); }
+    .art-card hover:scale-[1.02] transition-all duration-300 img { height: 240px; object-fit: cover; transition: transform 0.3s ease; }
     pre.sql { background: rgba(0,0,0,0.35); padding: 10px; border-radius:6px; overflow:auto; }
     .hint { background: rgba(255,255,255,0.02); padding:10px; border-radius:8px; }
     .log { font-family: monospace; font-size: 12px; white-space: pre-wrap; }
@@ -20,13 +20,7 @@
 <body class="min-h-screen p-6">
   <div class="max-w-7xl mx-auto">
     <header class="flex items-center justify-between mb-8">
-      <div class="flex items-center gap-4">
-        <div class="w-14 h-14 rounded-lg bg-gradient-to-tr from-purple-600 to-pink-500 flex items-center justify-center text-2xl font-bold">ART</div>
-        <div>
-          <h1 class="text-2xl font-semibold">Art Portfolio</h1>
-          <p class="text-sm opacity-80">โชว์ผลงาน — พร้อมแดชบอร์ดหลังบ้านเชื่อม Supabase</p>
-        </div>
-      </div>
+      <div></div>
       <div class="flex gap-3">
         <button id="btn-open-gallery" class="px-4 py-2 glass rounded">Gallery</button>
         <button id="btn-open-admin" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 rounded">Admin</button>
@@ -82,13 +76,14 @@ create policy "users can insert own artworks" on public.artworks for insert to a
 create policy "users can select own artworks" on public.artworks for select to authenticated using (auth.uid() = created_by);
 
 -- Storage policies (in Storage → Policies for bucket 'artworks')
--- Policy definition box expects a boolean expression only (not full CREATE POLICY SQL).
--- For an INSERT (upload) policy, set Allowed operations: INSERT + upload, Target role: authenticated
--- Policy definition (enter only this expression in the UI):
+-- In the Storage UI you MUST NOT paste a full CREATE POLICY statement.
+-- Instead, choose Allowed operations: INSERT + upload (for upload), Target role: authenticated,
+-- and in the Policy definition box enter only the boolean expression shown below.
+
+-- For upload (INSERT + upload) enter this in Policy definition box:
 bucket_id = 'artworks'
 
--- For read (SELECT) policy, Allowed operation: SELECT, Target role: authenticated
--- Policy definition (enter only this expression in the UI):
+-- For read (SELECT) enter this in Policy definition box:
 bucket_id = 'artworks'
                 </pre>
                 <p class="mt-2">ตรวจให้แน่ใจว่า<strong>ชื่อบัคเก็ตเป็นตัวพิมพ์เล็ก</strong> <span class="badge">artworks</span> และ Policy definition ใน UI ใส่เฉพาะเงื่อนไขเช่น <code>bucket_id = 'artworks'</code></p>
@@ -121,6 +116,7 @@ bucket_id = 'artworks'
     function formatErr(err){
       if(!err) return '';
       if(typeof err === 'string') return err;
+      // If it's Supabase error object
       if(err.message && err.status) return `${err.message} (status: ${err.status})`;
       if(err.error && err.error.message) return `${err.error.message}`;
       if(err.message) return err.message;
@@ -337,8 +333,9 @@ bucket_id = 'artworks'
                   </div>
                   <div class="text-sm opacity-80">${new Date(art.created_at).toLocaleString()}</div>
                 </div>
-                <div class="mt-2 flex gap-2">
-                  <button data-id="${art.id}" class="btn-toggle px-3 py-1 rounded bg-yellow-500">Toggle Publish</button>
+                <div class="mt-2 flex gap-2 items-center">
+                  <span class="px-2 py-1 text-xs rounded bg-white/10">สถานะ: ${art.published ? 'เปิดอยู่' : 'ปิดอยู่'}</span>
+                  <button data-id="${art.id}" class="btn-toggle px-3 py-1 rounded bg-yellow-500">สลับสถานะ</button>
                   <button data-id="${art.id}" class="btn-delete px-3 py-1 rounded bg-red-600">Delete</button>
                 </div>
               </div>
