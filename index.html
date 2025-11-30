@@ -10,7 +10,7 @@
   <style>
     body { background: linear-gradient(180deg,#0f172a 0%, #0a1a45 60%); color: #e6eef8; font-family: 'Inter', sans-serif; }
     .glass { background: rgba(255,255,255,0.06); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.08); box-shadow: 0 4px 20px rgba(0,0,0,0.2); }
-    .art-card hover:scale-[1.02] transition-all duration-300 img { height: 240px; object-fit: cover; transition: transform 0.3s ease; }
+    .art-card img, .art-card video { height: 240px; object-fit: cover; transition: transform 0.3s ease; width: 100%; }
     pre.sql { background: rgba(0,0,0,0.35); padding: 10px; border-radius:6px; overflow:auto; }
     .hint { background: rgba(255,255,255,0.02); padding:10px; border-radius:8px; }
     .log { font-family: monospace; font-size: 12px; white-space: pre-wrap; }
@@ -53,7 +53,8 @@
             <form id="art-form" class="grid grid-cols-2 gap-3 items-end">
               <input id="art-title" placeholder="ชื่อผลงาน" class="p-2 rounded bg-transparent border border-white/10 col-span-2" />
               <textarea id="art-desc" placeholder="คำอธิบาย" class="p-2 rounded bg-transparent border border-white/10 col-span-2"></textarea>
-              <input id="art-file" type="file" accept="image/*" class="col-span-2" />
+              <!-- allow images and videos -->
+              <input id="art-file" type="file" accept="image/*,video/*" class="col-span-2" />
               <label class="flex items-center gap-2 col-span-2"><input id="art-publish" type="checkbox" /> เผยแพร่</label>
               <button id="btn-upload" class="px-4 py-2 bg-blue-600 rounded col-span-2">อัปโหลด / สร้างผลงาน</button>
             </form>
@@ -105,8 +106,11 @@ bucket_id = 'artworks'
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlyaXZ2Y2thZXFoZmNqdXB1dGVtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ0MjYzNjksImV4cCI6MjA4MDAwMjM2OX0.Hw7rtrJyXS6sClytRKSYutvW7Co5l_jmbOUOduo30u0';
     // MUST match your Supabase Storage bucket name exactly (case-sensitive)
     const BUCKET_NAME = 'artworks';
-    const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
-    const ALLOWED_MIMES = ['image/jpeg','image/png','image/webp'];
+    const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100 MB (for videos)
+    const ALLOWED_MIMES = [
+      'image/jpeg','image/png','image/webp',
+      'video/mp4','video/webm','video/ogg'
+    ];
     // ======================================
 
     // instantiate properly
@@ -186,13 +190,22 @@ bucket_id = 'artworks'
         data.forEach(art => {
           const card = document.createElement('article');
           card.className = 'art-card rounded-lg overflow-hidden glass p-0';
-          card.innerHTML = `
-            <img src="${art.image_url || 'https://via.placeholder.com/600x400?text=No+Image'}" alt="${escapeHtml(art.title)}" class="w-full"/>
-            <div class="p-4">
-              <h3 class="font-semibold text-lg">${escapeHtml(art.title)}</h3>
-              <p class="text-sm mt-2 opacity-80">${escapeHtml(art.description || '')}</p>
+
+          // render image or video depending on file extension
+          const isVideo = /\.(mp4|webm|ogg)(\?.*)?$/i.test(art.image_url || '');
+          let mediaHtml = '';
+          if(isVideo){
+            mediaHtml = '<video src="' + art.image_url + '" controls class="w-full h-60 object-cover"></video>';
+          } else {
+            mediaHtml = '<img src="' + (art.image_url || 'https://via.placeholder.com/600x400?text=No+Image') + '" alt="' + escapeHtml(art.title) + '" class="w-full h-60 object-cover"/>';
+          }
+          card.innerHTML = mediaHtml + "
+            <div class=\"p-4\">
+              <h3 class=\"font-semibold text-lg\">" + escapeHtml(art.title) + "</h3>
+              <p class=\"text-sm mt-2 opacity-80\">" + escapeHtml(art.description || '') + "</p>
             </div>
-          `;
+          ";
+
           galleryGrid.appendChild(card);
         });
       }catch(err){
@@ -236,7 +249,7 @@ bucket_id = 'artworks'
       const desc = document.getElementById('art-desc').value.trim();
       const fileInput = document.getElementById('art-file');
       const publish = document.getElementById('art-publish').checked;
-      if(!title || !fileInput.files || fileInput.files.length===0){ alert('กรุณากรอกชื่อผลงานและเลือกไฟล์ภาพ'); return; }
+      if(!title || !fileInput.files || fileInput.files.length===0){ alert('กรุณากรอกชื่อผลงานและเลือกไฟล์'); return; }
 
       // ensure authenticated
       const sessionResp = await supabaseClient.auth.getSession();
@@ -249,9 +262,9 @@ bucket_id = 'artworks'
       const filePath = `${userId}/${Date.now()}-${Math.random().toString(36).slice(2,8)}.${fileExt}`;
 
       // validate file
-      if(file.size > MAX_FILE_SIZE){ alert('ไฟล์ใหญ่เกินไป — จำกัดที่ 10 MB'); return; }
+      if(file.size > MAX_FILE_SIZE){ alert('ไฟล์ใหญ่เกินไป — จำกัดที่ ' + (MAX_FILE_SIZE/1024/1024) + ' MB'); return; }
       if(!ALLOWED_MIMES.includes(file.type)){
-        alert('ชนิดไฟล์ไม่รองรับ — อัปโหลดได้เฉพาะ jpg/png/webp');
+        alert('ชนิดไฟล์ไม่รองรับ — อัปโหลดได้เฉพาะ jpg/png/webp หรือ mp4/webm/ogg');
         return;
       }
 
@@ -322,9 +335,16 @@ bucket_id = 'artworks'
         for(const art of data){
           const node = document.createElement('div');
           node.className = 'p-3 glass rounded';
+
+          // small preview: video or image
+          const isVideo = /\.(mp4|webm|ogg)(\?.*)?$/i.test(art.image_url || '');
+          const previewHtml = isVideo
+            ? `<video src="${art.image_url}" class="w-28 h-20 object-cover rounded" controls muted loop></video>`
+            : `<img src="${art.image_url||'https://via.placeholder.com/120'}" class="w-28 h-20 object-cover rounded" />`;
+
           node.innerHTML = `
             <div class="flex gap-3">
-              <img src="${art.image_url||'https://via.placeholder.com/120'}" class="w-28 h-20 object-cover rounded" />
+              ${previewHtml}
               <div class="flex-1">
                 <div class="flex justify-between items-start">
                   <div>
@@ -341,6 +361,7 @@ bucket_id = 'artworks'
               </div>
             </div>
           `;
+
           adminList.appendChild(node);
         }
         // wire up buttons
