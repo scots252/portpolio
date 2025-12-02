@@ -2,224 +2,600 @@
 <html lang="th">
  <head>
   <meta charset="UTF-8">
-  <title>Creative Portfolio Dashboard (Supabase)</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Creative Portfolio Dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1"><!-- Tailwind CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.27.0/dist/umd/supabase.min.js"></script>
-  <style>
-    body{box-sizing:border-box}
-    html,body{height:100%;width:100%}
-    .app-wrapper{font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
-    .scroll-area::-webkit-scrollbar{width:8px}
-    .portfolio-card{transition:transform .15s ease}
-    .portfolio-card:hover{transform:translateY(-4px)}
-    .line-clamp-2{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
-  </style>
- </head>
- <body class="w-full h-full m-0 p-0 bg-slate-950 text-slate-50">
-  <div id="app" class="app-wrapper w-full h-full flex flex-col">
-   <header class="w-full flex items-center justify-between px-6 py-3 border-b border-slate-800">
-    <div class="flex items-center gap-3">
-     <div class="w-8 h-8 rounded-full bg-sky-400 flex items-center justify-center text-slate-900 font-bold">CP</div>
-     <div>
-      <div class="text-sm font-semibold">Creative Portfolio</div>
-      <div class="text-xs text-slate-400">Viewer / Admin (Supabase)</div>
-     </div>
-    </div>
-    <div class="flex items-center gap-3 text-xs">
-      <button id="logoutBtn" class="px-3 py-1 rounded-full bg-red-500 text-slate-900 hidden">Logout</button>
-      <button id="viewerModeBtn" class="px-3 py-1 rounded-full bg-slate-100 text-slate-900">Portfolio</button>
-      <button id="adminModeBtn" class="px-3 py-1 rounded-full bg-slate-900 text-slate-50">Dashboard</button>
-    </div>
-   </header>
+  <!-- Supabase JS Client (v2) -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+  // --- Supabase Client Init ---
+  const supabaseUrl = "https://yrivvckaeqhfcjuputem.supabase.co";
+  const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlyaXZ2Y2thZXFoZmNqdXB1dGVtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ0MjYzNjksImV4cCI6MjA4MDAwMjM2OX0.Hw7rtrJyXS6sClytRKSYutvW7Co5l_jmbOUOduo30u0";
+  const supabase = window.supabase?.createClient?.(supabaseUrl, supabaseKey, { auth: { persistSession: false } });
 
-<!-- Login Modal -->
-<div id="loginModal" class="fixed inset-0 bg-black/70 flex items-center justify-center z-50 hidden">
-  <div class="bg-slate-900 p-6 rounded-xl w-80 shadow-xl border border-slate-700">
-    <h2 class="text-lg mb-3 font-semibold">เข้าสู่ระบบผู้ดูแล</h2>
-    <input id="loginEmail" placeholder="Email" class="w-full mb-2 px-3 py-2 rounded bg-slate-800 text-xs" />
-    <input id="loginPass" type="password" placeholder="Password" class="w-full mb-4 px-3 py-2 rounded bg-slate-800 text-xs" />
-    <button id="loginSubmit" class="w-full px-3 py-2 bg-emerald-500 text-slate-900 rounded text-xs">Login</button>
-    <button id="loginClose" class="w-full mt-2 px-3 py-2 bg-slate-700 rounded text-xs">Cancel</button>
+  try {
+    Object.keys(localStorage).forEach((k) => {
+      if (k.toLowerCase().includes('supabase') || k.toLowerCase().includes('sb-')) {
+        localStorage.removeItem(k);
+      }
+    });
+  } catch (e) {
+    console.warn('Could not clear supabase-related localStorage keys', e);
+  }
+  </script>
+  <script src="/_sdk/element_sdk.js"></script>
+  <script src="/_sdk/data_sdk.js"></script>
+  <style>
+      body { box-sizing: border-box; }
+      html, body { height: 100%; width: 100%; }
+      .app-wrapper { font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+      .scroll-area::-webkit-scrollbar { width: 8px; }
+      .scroll-area::-webkit-scrollbar-track { background: transparent; }
+      .scroll-area::-webkit-scrollbar-thumb { border-radius: 999px; }
+      .focus-ring:focus-visible { outline: 2px solid rgba(255, 255, 255, 0.8); outline-offset: 2px; }
+      .focus-ring-dark:focus-visible { outline: 2px solid rgba(0, 0, 0, 0.8); outline-offset: 2px; }
+      .portfolio-card { transition: transform 150ms ease, box-shadow 150ms ease; }
+      .portfolio-card:hover { transform: translateY(-4px); }
+      .line-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+    </style>
+  <style>@view-transition { navigation: auto; }</style>
+ </head>
+ <body class="w-full h-full m-0 p-0">
+  <div id="app" class="app-wrapper w-full h-full bg-slate-950 text-slate-50 flex flex-col">
+   <header class="w-full flex items-center justify-between px-6 py-3 border-b border-slate-800 bg-slate-950/90">
+    <div class="flex items-center gap-2">
+     <div class="w-7 h-7 rounded-full bg-sky-400 flex items-center justify-center text-slate-950 font-semibold text-xs">CP</div>
+     <div class="flex flex-col leading-tight"><span id="panel-brand" class="text-sm font-semibold tracking-wide"> Creative Portfolio </span> <span class="text-[11px] text-slate-400"> Viewer / Admin dashboard </span></div>
+    </div>
+    <div id="header-actions" class="flex items-center gap-2 text-[11px]"><span class="text-slate-400">โหมดมุมมอง:</span> <button id="viewerModeBtn" type="button" class="focus-ring-dark px-3 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-900 border border-slate-300"> Portfolio </button> <button id="adminModeBtn" type="button" class="focus-ring px-3 py-1 rounded-full text-xs font-medium bg-slate-900 text-slate-100 border border-slate-700"> Dashboard </button></div>
+   </header>
+   <main id="main-content" class="flex-1 w-full overflow-hidden flex flex-col">
+    <section id="viewer-section" class="h-full w-full overflow-hidden flex flex-col" aria-label="Portfolio viewer">
+     <section class="relative w-full" aria-labelledby="hero-title">
+      <div id="hero-banner" class="w-full h-[220px] bg-gradient-to-r from-sky-500 via-fuchsia-500 to-amber-400"></div>
+      <div class="max-w-5xl mx-auto px-6 -mt-16 relative z-10 flex gap-6 items-end">
+       <div class="shrink-0 w-28 h-28 rounded-full border-4 border-slate-950 bg-slate-800 flex items-center justify-center overflow-hidden">
+        <div id="profile-avatar-fallback" class="w-full h-full flex items-center justify-center text-3xl" aria-hidden="true">🎨</div>
+        <img id="profile-avatar-img" src="" alt="โปรไฟล์ศิลปิน" class="w-full h-full object-cover rounded-full" onerror="this.style.display='none'; document.getElementById('profile-avatar-fallback').style.display='flex';">
+       </div>
+       <div class="flex-1 pb-4">
+        <h1 id="hero-title" class="text-2xl md:text-3xl font-semibold tracking-tight mb-2">ชื่อศิลปิน – Designer / Illustrator / Videographer</h1>
+        <p id="hero-tagline" class="text-sm md:text-base text-slate-300 max-w-2xl">กราฟิก &amp; ถ่ายภาพรถจักรยานยนต์ &amp; ถ่ายวิดีโอ &amp; คิดคอนเทนต์ &amp; ตัดต่อวิดีโอ</p>
+        <div class="mt-4 flex flex-wrap items-center gap-3"><a id="facebook-link" href="#" target="_blank" rel="noopener noreferrer" class="focus-ring inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-slate-500/60 bg-slate-900/70 text-xs md:text-sm text-slate-50 hover:bg-slate-800/80 transition-colors"> <span class="inline-flex items-center justify-center w-5 h-5 rounded-full bg-sky-500 text-[11px] font-bold text-slate-950" aria-hidden="true"> f </span> <span>Facebook Portfolio</span> </a> <span id="work-overview-text" class="text-[11px] md:text-xs text-slate-400"> Portfolio รวมงานหลายหมวดหมู่ – Graphic / Video / Illustration </span></div>
+       </div>
+      </div>
+      <nav class="w-full border-b border-slate-800 mt-6" aria-label="Portfolio sections">
+       <div class="max-w-5xl mx-auto px-6 flex gap-6 text-sm">
+         <button id="nav-1" type="button" class="focus-ring pb-3 border-b-2 border-sky-400 text-slate-50 font-medium"> ประวัติส่วนตัว </button>
+         <button id="nav-work" type="button" class="focus-ring pb-3 border-b-2 border-transparent text-slate-400 hover:text-slate-100"> ผลงาน </button>
+         <button id="nav-favorites" type="button" class="focus-ring pb-3 border-b-2 border-transparent text-slate-400 hover:text-slate-100"> ความชื่นชอบ </button></div>
+      </nav>
+     </section>
+     <section class="flex-1 w-full overflow-y-auto scroll-area">
+      <div class="max-w-5xl mx-auto px-6 py-6 space-y-10">
+       <section id="personal-bio-view" class="hidden" aria-labelledby="pb-title">
+  <h2 id="pb-title" class="text-lg md:text-xl font-semibold mb-4">ประวัติส่วนตัว</h2>
+  <div id="pb-content" class="space-y-6 text-sm text-slate-300"></div>
+</section>
+
+<section id="work-section" aria-labelledby="work-section-title">
+  <div class="flex items-baseline justify-between mb-4">
+    <h2 id="work-section-title" class="text-lg md:text-xl font-semibold">Selected Works</h2>
+    <p id="work-stats" class="text-xs text-slate-400">รวมผลงานทั้งหมด 0 ชิ้น</p>
+  </div>
+  <div id="work-grid" class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"></div>
+</section>
+       <section id="favorites-section" class="hidden" aria-labelledby="favorites-section-title">
+        <div class="flex items-baseline justify-between mb-4">
+         <h2 id="favorites-section-title" class="text-lg md:text-xl font-semibold">Inspirations &amp; Favorites</h2>
+         <p id="favorites-stats" class="text-xs text-slate-400">รายการความชื่นชอบ 0 รายการ</p>
+        </div>
+        <div id="favorites-list" class="grid gap-4 md:grid-cols-2"></div>
+       </section>
+       <section aria-label="Experience and skills" class="border-t border-slate-800 pt-6 space-y-8">
+        <div class="grid gap-8 md:grid-cols-3"><div class="md:col-span-2"><h3 id="experience-title" class="text-base md:text-lg font-semibold mb-3">Experience</h3><div id="experience-list" class="space-y-4"></div><p id="experience-empty" class="text-xs text-slate-500">ยังไม่มีข้อมูลประสบการณ์การทำงาน กรอกในหน้า Dashboard เพื่อแสดงในส่วนนี้</p></div>
+       </section>
+      </div>
+     </section>
+    </section>
+    <section id="admin-section" class="hidden w-full h-full overflow-y-auto bg-slate-900 p-6 text-slate-100">
+     <h1 class="text-2xl font-semibold mt-0 mb-4">Dashboard – จัดการผลงาน</h1>
+
+
+<!-- Quick Menu -->
+<div class="flex gap-3 mb-6 text-sm">
+  <button id="menu-profile-settings" class="px-4 py-2 rounded bg-slate-800 border border-slate-700 hover:bg-slate-700">1. ตั้งค่าหน้าโปรไฟล์</button>
+  <button id="menu-personal-bio" class="px-4 py-2 rounded bg-slate-800 border border-slate-700 hover:bg-slate-700">2. ประวัติส่วนตัว</button>
+</div>
+
+
+<!-- ===== Profile Settings ===== -->
+<div id="profile-settings">
+<div class="bg-slate-800 p-4 rounded-xl border border-slate-700 shadow-lg space-y-3">
+ <h2 class="text-lg font-semibold">ตั้งค่าหน้าโปรไฟล์</h2>
+ <label class="text-sm">แบนเนอร์ (อัปโหลด)</label>
+ <input id="banner-upload" type="file" accept="image/*" class="w-full text-sm" />
+ <label class="text-sm">รูปโปรไฟล์ (อัปโหลด)</label>
+ <input id="avatar-upload" type="file" accept="image/*" class="w-full text-sm" />
+ <label class="text-sm">ชื่อศิลปิน</label>
+ <input id="artist-name" type="text" class="w-full px-3 py-2 rounded bg-slate-900 border border-slate-700" />
+ <label class="text-sm">รายละเอียดใต้ชื่อ</label>
+ <textarea id="artist-bio" class="w-full px-3 py-2 rounded bg-slate-900 border border-slate-700"></textarea>
+ <label class="text-sm">ลิงก์ Facebook</label>
+ <input id="artist-facebook" type="text" class="w-full px-3 py-2 rounded bg-slate-900 border border-slate-700" />
+ <button id="save-profile-btn" class="w-full mt-2 px-4 py-2 bg-emerald-400 text-black rounded font-semibold">บันทึกข้อมูล</button>
+</div>
+
+</div>
+
+<!-- ===== Personal Bio Tab (ADMIN) ===== -->
+<div id="personal-bio-admin" class="hidden mt-6 bg-slate-800 p-4 rounded-xl border border-slate-700 shadow-lg">
+  <h2 class="text-lg font-semibold mb-3">ประวัติส่วนตัว (Personal Bio)</h2>
+  <!-- Personal Information -->
+  <div class="bg-slate-900 p-4 rounded mb-4">
+    <h3 class="font-semibold mb-2">1. ข้อมูลส่วนบุคคล (Personal Information)</h3>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+      <input id="pi_fullname" placeholder="ชื่อ-นามสกุล" class="px-3 py-2 rounded bg-slate-800 border border-slate-700" />
+      <input id="pi_dob" type="date" placeholder="วันเดือนปีเกิด" class="px-3 py-2 rounded bg-slate-800 border border-slate-700" />
+      <input id="pi_address" placeholder="ที่อยู่ปัจจุบัน" class="col-span-1 md:col-span-2 px-3 py-2 rounded bg-slate-800 border border-slate-700" />
+      <input id="pi_phone" placeholder="เบอร์โทรศัพท์" class="px-3 py-2 rounded bg-slate-800 border border-slate-700" />
+      <input id="pi_email" type="email" placeholder="อีเมล" class="px-3 py-2 rounded bg-slate-800 border border-slate-700" />
+      <input id="pi_status" placeholder="สถานภาพ (เช่น โสด/สมรส)" class="px-3 py-2 rounded bg-slate-800 border border-slate-700" />
+      <input id="pi_nationality" placeholder="สัญชาติ/ศาสนา" class="px-3 py-2 rounded bg-slate-800 border border-slate-700" />
+    </div>
+    <div class="pt-3"><button id="save-personal-info" class="px-4 py-2 bg-emerald-400 text-black rounded font-semibold">บันทึกข้อมูลส่วนบุคคล</button></div>
+  </div>
+
+  <!-- Education -->
+  <div class="bg-slate-900 p-4 rounded mb-4">
+    <h3 class="font-semibold mb-2">2. ประวัติการศึกษา</h3>
+    <p class="text-xs text-slate-400 mb-2">เพิ่ม / แก้ไข / ลบ รายการการศึกษา</p>
+    <div class="flex gap-2 mb-3">
+      <button id="add-education-btn" class="px-3 py-1 bg-sky-500 rounded text-black text-sm">+ เพิ่มการศึกษา</button>
+      <button id="clear-education-btn" class="px-3 py-1 bg-rose-600 rounded text-white text-sm">ลบทั้งหมด</button>
+    </div>
+    <div id="education-list" class="space-y-2"></div>
+  </div>
+
+  <!-- Experience -->
+  <div class="bg-slate-900 p-4 rounded mb-4">
+    <h3 class="font-semibold mb-2">3. ประวัติการทำงานและประสบการณ์</h3>
+    <p class="text-xs text-slate-400 mb-2">เพิ่ม / แก้ไข / ลบ รายการประสบการณ์</p>
+    <div class="flex gap-2 mb-3">
+      <button id="add-experience-btn" class="px-3 py-1 bg-sky-500 rounded text-black text-sm">+ เพิ่มประสบการณ์</button>
+      <button id="clear-experience-btn" class="px-3 py-1 bg-rose-600 rounded text-white text-sm">ลบทั้งหมด</button>
+    </div>
+    <div id="experience-list-admin" class="space-y-2"></div>
+  </div>
+
+  <!-- Skills -->
+  <div class="bg-slate-900 p-4 rounded mb-4">
+    <h3 class="font-semibold mb-2">4. ทักษะและความสามารถ</h3>
+    <p class="text-xs text-slate-400 mb-2">เพิ่ม / แก้ไข / ลบ ทักษะ</p>
+    <div class="flex gap-2 mb-3">
+      <input id="skill-input" placeholder="พิมพ์ทักษะ แล้วกด Enter" class="px-3 py-2 rounded bg-slate-800 border border-slate-700 flex-1" />
+      <button id="add-skill-btn" class="px-3 py-2 bg-sky-500 rounded text-black">เพิ่ม</button>
+      <button id="clear-skills-btn" class="px-3 py-2 bg-rose-600 rounded text-white">ลบทั้งหมด</button>
+    </div>
+    <div id="skills-list" class="mt-3 flex flex-wrap gap-2"></div>
+  </div>
+
+  <!-- Misc -->
+  <div class="bg-slate-900 p-4 rounded mb-4">
+    <h3 class="font-semibold mb-2">5. ข้อมูลเสริมและกิจกรรม</h3>
+    <p class="text-xs text-slate-400 mb-2">เพิ่ม / แก้ไข / ลบ ข้อมูลเสริม</p>
+    <div class="flex gap-2 mb-3">
+      <button id="add-misc-btn" class="px-3 py-1 bg-sky-500 rounded text-black text-sm">+ เพิ่มข้อมูลเสริม</button>
+      <button id="clear-misc-btn" class="px-3 py-1 bg-rose-600 rounded text-white text-sm">ลบทั้งหมด</button>
+    </div>
+    <div id="misc-list" class="space-y-2"></div>
   </div>
 </div>
 
-   <main class="flex-1 overflow-hidden flex">
-    <!-- Left: Viewer -->
-    <section id="viewer" class="flex-1 overflow-auto p-6 max-w-5xl mx-auto">
-      <div id="hero" class="relative mb-6">
-        <div id="hero-banner" class="w-full h-48 bg-gradient-to-r from-sky-500 to-fuchsia-500 rounded-lg"></div>
-        <div class="-mt-16 flex items-end gap-4">
-          <div class="w-28 h-28 rounded-full border-4 border-slate-950 bg-slate-800 overflow-hidden" id="avatarWrap">🎨</div>
-          <div>
-            <h1 id="hero-name" class="text-2xl font-semibold">ชื่อศิลปิน</h1>
-            <p id="hero-tagline" class="text-slate-300">Tagline</p>
-          </div>
-        </div>
-      </div>
+<script>
+// Constants
+const USER_ID = 1; // fixed owner id for this demo
+const STORAGE_KEYS = { profile: 'cp_profile' };
+const piFields = ['pi_fullname','pi_dob','pi_address','pi_phone','pi_email','pi_status','pi_nationality'];
 
-      <nav class="mb-4">
-        <button id="navWork" class="mr-2 px-3 py-1 bg-slate-800 rounded">งาน</button>
-        <button id="navFav" class="px-3 py-1 bg-slate-800 rounded">ความชื่นชอบ</button>
-      </nav>
+function escapeHtml(s){ if(s===0) return '0'; if(!s) return ''; return String(s).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;'); }
 
-      <div id="contentArea"></div>
-    </section>
-
-    <!-- Right: Admin -->
-    <aside id="admin" class="w-[480px] bg-slate-900 border-l border-slate-800 p-6 overflow-auto hidden">
-      <h2 class="text-lg mb-3">Dashboard (Supabase)</h2>
-
-      <hr class="border-slate-800 my-4" />
-
-      <section class="space-y-3">
-        <h3 class="text-sm">Hero / Profile</h3>
-        <input id="adminName" placeholder="Name" class="w-full px-3 py-2 rounded bg-slate-800 text-xs" />
-        <input id="adminTagline" placeholder="Tagline" class="w-full px-3 py-2 rounded bg-slate-800 text-xs" />
-        <input id="adminBanner" placeholder="Banner URL" class="w-full px-3 py-2 rounded bg-slate-800 text-xs" />
-        <input id="adminProfile" placeholder="Profile URL" class="w-full px-3 py-2 rounded bg-slate-800 text-xs" />
-        <div class="flex gap-2">
-          <button id="saveHero" class="px-3 py-2 bg-emerald-500 rounded text-slate-900 text-xs">Save Hero</button>
-          <button id="loadHero" class="px-3 py-2 bg-slate-700 rounded text-xs">Load</button>
-        </div>
-      </section>
-
-      <hr class="border-slate-800 my-4" />
-
-      <section class="space-y-3">
-        <h3 class="text-sm">Works (CRUD)</h3>
-        <input id="workTitle" placeholder="Title" class="w-full px-3 py-2 rounded bg-slate-800 text-xs" />
-        <input id="workCategory" placeholder="Category" class="w-full px-3 py-2 rounded bg-slate-800 text-xs" />
-        <input id="workImage" placeholder="Image URL" class="w-full px-3 py-2 rounded bg-slate-800 text-xs" />
-        <textarea id="workDesc" placeholder="Description" class="w-full px-3 py-2 rounded bg-slate-800 text-xs"></textarea>
-        <div class="flex gap-2">
-          <button id="createWork" class="px-3 py-2 bg-sky-500 rounded text-slate-900 text-xs">Create</button>
-          <button id="updateWork" class="px-3 py-2 bg-emerald-500 rounded text-slate-900 text-xs" disabled>Update</button>
-          <button id="cancelWork" class="px-3 py-2 bg-slate-700 rounded text-xs">Clear</button>
-        </div>
-        <div id="workList" class="mt-3 space-y-2 text-xs"></div>
-      </section>
-
-      <hr class="border-slate-800 my-4" />
-
-      <div class="text-xs text-slate-400">
-    </aside>
-   </main>
-
-   <footer class="border-t border-slate-800 p-3 text-xs text-slate-400">Made with ❤️ — Supabase mode</footer>
-  </div>
-
-  <script>
-    // --- Supabase integration & App logic (cleaned)
-    let supabase = null;
-    // default values — you already provided these; safe to keep here for preview
-    let SUPABASE_URL = "https://yrivvckaeqhfcjuputem.supabase.co";
-    let SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlyaXZ2Y2thZXFoZmNqdXB1dGVtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ0MjYzNjksImV4cCI6MjA4MDAwMjM2OX0.Hw7rtrJyXS6sClytRKSYutvW7Co5l_jmbOUOduo30u0";
-    let editingWorkId = null;
-
-    const setStatus = (t) => { const el = document.getElementById('status'); if(el) el.textContent = t || ''; };
-
-    // UI refs (some will be null until DOM ready)
-    let adminPanel, viewerBtn, adminBtn, connectBtn;
-
-    function connectSupabase(url, key){
-      try{
-        supabase = window.supabase.createClient(url, key);
-        return true;
-      }catch(e){
-        console.error('connect error', e);
-        return false;
+// ---------- Personal info (existing) ----------
+async function loadPersonalInfo(){
+  if (supabase) {
+    try {
+      const { data, error } = await supabase.from('personal_bio').select('*').eq('id',1).single();
+      if(!error && data) {
+        piFields.forEach(id => {
+          const el = document.getElementById(id);
+          if(!el) return;
+          el.value = data[id] || '';
+        });
+        return;
       }
+    } catch(e) { console.warn('Supabase load personal info failed', e); }
+  }
+  // fallback local
+  const p = JSON.parse(localStorage.getItem(STORAGE_KEYS.profile) || '{}');
+  const personal = p.personal || {};
+  piFields.forEach(id => { const el = document.getElementById(id); if(!el) return; el.value = personal[id] || ''; });
+}
+
+async function savePersonalInfoToServer(){
+  const payload = { id:1 };
+  piFields.forEach(id => { const el = document.getElementById(id); if(!el) return; payload[id] = el.value || ''; });
+  if(!supabase) { alert('Supabase not available'); return; }
+  try{
+    const { error } = await supabase.from('personal_bio').upsert(payload);
+    if(error) { throw error; }
+    // Popup แสดงผลสำเร็จ
+    const popup = document.createElement('div');
+    popup.className = 'fixed top-5 right-5 bg-emerald-500 text-black px-4 py-2 rounded shadow-xl animate-pulse z-50';
+    popup.innerText = 'บันทึกข้อมูลส่วนบุคคลสำเร็จ!';
+    document.body.appendChild(popup);
+    setTimeout(()=>popup.remove(),2000);
+    await loadPersonalInfo();
+  }catch(e){ console.error(e); alert('บันทึกข้อมูลไม่สำเร็จ: '+(e.message||e)); }
+}
+
+// ---------- CRUD helpers for Supabase tables ----------
+async function fetchTable(table){
+  if(!supabase) return [];
+  try{
+    const { data, error } = await supabase.from(table).select('*').eq('user_id', USER_ID).order('id', { ascending: false });
+    if(error) throw error;
+    return data || [];
+  }catch(e){ console.warn('fetchTable', table, e); return []; }
+}
+
+async function insertTable(table, record){
+  if(!supabase) return null;
+  try{
+    const { data, error } = await supabase.from(table).insert([{ ...record, user_id: USER_ID }]).select();
+    if(error) throw error;
+    return (data && data[0]) || null;
+  }catch(e){ console.error('insertTable', table, e); return null; }
+}
+
+async function updateTableById(table, id, changes){
+  if(!supabase) return null;
+  try{
+    const { data, error } = await supabase.from(table).update(changes).eq('id', id).eq('user_id', USER_ID).select();
+    if(error) throw error;
+    return (data && data[0]) || null;
+  }catch(e){ console.error('updateTableById', table, e); return null; }
+}
+
+async function deleteTableById(table, id){
+  if(!supabase) return false;
+  try{
+    const { error } = await supabase.from(table).delete().eq('id', id).eq('user_id', USER_ID);
+    if(error) throw error;
+    return true;
+  }catch(e){ console.error('deleteTableById', table, e); return false; }
+}
+
+async function deleteAllFromTable(table){
+  if(!supabase) return false;
+  try{
+    const { error } = await supabase.from(table).delete().eq('user_id', USER_ID);
+    if(error) throw error;
+    return true;
+  }catch(e){ console.error('deleteAllFromTable', table, e); return false; }
+}
+
+// ---------- Education ----------
+async function renderEducation(){
+  const container = document.getElementById('education-list'); if(!container) return;
+  container.innerHTML = '<div class="text-xs text-slate-400">Loading...</div>';
+  const list = await fetchTable('education');
+  container.innerHTML = '';
+  if(!list.length) { container.innerHTML = '<div class="text-slate-500 text-sm">ยังไม่มีข้อมูลการศึกษา</div>'; return; }
+  list.forEach(item => {
+    const el = document.createElement('div'); el.className='p-3 bg-slate-800 rounded border border-slate-700 flex items-start justify-between';
+    el.innerHTML = `<div><div class="font-semibold">${escapeHtml(item.level||'')} — ${escapeHtml(item.institution||'')}</div><div class="text-xs text-slate-400">สาขา: ${escapeHtml(item.major||'')} | ปี: ${escapeHtml(item.year||'')} | GPA: ${escapeHtml(item.gpa||'')}</div></div><div class="flex gap-2"><button class="edit-edu px-2 py-1 text-xs rounded bg-amber-400 text-black">แก้ไข</button><button class="del-edu px-2 py-1 text-xs rounded bg-rose-600 text-white">ลบ</button></div>`;
+    container.appendChild(el);
+    el.querySelector('.edit-edu').addEventListener('click', ()=>promptEditEducation(item));
+    el.querySelector('.del-edu').addEventListener('click', async ()=>{ if(confirm('ลบรายการนี้?')) { const ok = await deleteTableById('education', item.id); if(ok) renderEducation(); else alert('ลบไม่สำเร็จ'); } });
+  });
+}
+async function promptEditEducation(item){
+  const level = prompt('ระดับการศึกษา', item.level); if(level===null) return;
+  const institution = prompt('ชื่อสถาบัน:', item.institution); if(institution===null) return;
+  const major = prompt('สาขาวิชาเอก/คณะ:', item.major); if(major===null) return;
+  const year = prompt('ปีที่สำเร็จการศึกษา:', item.year); if(year===null) return;
+  const gpa = prompt('เกรดเฉลี่ย (GPA):', item.gpa); if(gpa===null) return;
+  const updated = await updateTableById('education', item.id, { level, institution, major, year, gpa });
+  if(updated) renderEducation(); else alert('อัปเดตไม่สำเร็จ');
+}
+async function addEducation(){
+  const level = prompt('ระดับการศึกษา (เช่น ปริญญาตรี)'); if(level===null) return;
+  const institution = prompt('ชื่อสถาบัน:'); if(institution===null) return;
+  const major = prompt('สาขาวิชาเอก/คณะ:'); if(major===null) return;
+  const year = prompt('ปีที่สำเร็จการศึกษา:'); if(year===null) return;
+  const gpa = prompt('เกรดเฉลี่ย (GPA):'); if(gpa===null) return;
+  const rec = await insertTable('education', { level, institution, major, year, gpa });
+  if(rec) renderEducation(); else alert('เพิ่มข้อมูลไม่สำเร็จ');
+}
+async function clearEducation(){ if(!confirm('ลบการศึกษาทั้งหมด?')) return; const ok = await deleteAllFromTable('education'); if(ok) renderEducation(); else alert('ลบไม่สำเร็จ'); }
+
+// ---------- Experience ----------
+async function renderExperience(){
+  const container = document.getElementById('experience-list-admin'); if(!container) return;
+  container.innerHTML = '<div class="text-xs text-slate-400">Loading...</div>';
+  const list = await fetchTable('experience');
+  container.innerHTML = '';
+  if(!list.length) { container.innerHTML = '<div class="text-slate-500 text-sm">ยังไม่มีข้อมูลประสบการณ์</div>'; return; }
+  list.forEach(item => {
+    const el = document.createElement('div'); el.className='p-3 bg-slate-800 rounded border border-slate-700 flex items-start justify-between';
+    el.innerHTML = `<div><div class="font-semibold">${escapeHtml(item.company||'')} — ${escapeHtml(item.position||'')}</div><div class="text-xs text-slate-400">ช่วงเวลา: ${escapeHtml(item.period||'')}</div><div class="text-sm text-slate-300 mt-2">${escapeHtml(item.responsibilities||'')}</div></div><div class="flex gap-2"><button class="edit-exp px-2 py-1 text-xs rounded bg-amber-400 text-black">แก้ไข</button><button class="del-exp px-2 py-1 text-xs rounded bg-rose-600 text-white">ลบ</button></div>`;
+    container.appendChild(el);
+    el.querySelector('.edit-exp').addEventListener('click', ()=>promptEditExperience(item));
+    el.querySelector('.del-exp').addEventListener('click', async ()=>{ if(confirm('ลบรายการนี้?')) { const ok = await deleteTableById('experience', item.id); if(ok) renderExperience(); else alert('ลบไม่สำเร็จ'); } });
+  });
+}
+async function promptEditExperience(item){
+  const company = prompt('ชื่อบริษัท/องค์กร:', item.company); if(company===null) return;
+  const position = prompt('ตำแหน่งงาน:', item.position); if(position===null) return;
+  const period = prompt('ช่วงเวลาทำงาน:', item.period); if(period===null) return;
+  const responsibilities = prompt('รายละเอียดหน้าที่/ความรับผิดชอบ:', item.responsibilities); if(responsibilities===null) return;
+  const updated = await updateTableById('experience', item.id, { company, position, period, responsibilities });
+  if(updated) renderExperience(); else alert('อัปเดตไม่สำเร็จ');
+}
+async function addExperience(){
+  const company = prompt('ชื่อบริษัท/องค์กร:'); if(company===null) return;
+  const position = prompt('ตำแหน่งงาน:'); if(position===null) return;
+  const period = prompt('ช่วงเวลาททำงาน (เช่น Jan 2020 - Dec 2022):'); if(period===null) return;
+  const responsibilities = prompt('รายละเอียดหน้าที่/ความรับผิดชอบ (สรุป):'); if(responsibilities===null) return;
+  const rec = await insertTable('experience', { company, position, period, responsibilities });
+  if(rec) renderExperience(); else alert('เพิ่มข้อมูลไม่สำเร็จ');
+}
+async function clearExperience(){ if(!confirm('ลบประสบการณ์ทั้งหมด?')) return; const ok = await deleteAllFromTable('experience'); if(ok) renderExperience(); else alert('ลบไม่สำเร็จ'); }
+
+// ---------- Skills ----------
+async function renderSkills(){
+  const container = document.getElementById('skills-list'); if(!container) return;
+  container.innerHTML = '';
+  const list = await fetchTable('skills');
+  if(!list.length) { container.innerHTML = '<div class="text-slate-500 text-sm">ยังไม่มีทักษะ</div>'; return; }
+  list.forEach(item => {
+    const chip = document.createElement('div'); chip.className='px-3 py-1 rounded-full bg-slate-700 text-sm flex items-center gap-2';
+    chip.innerHTML = `<span>${escapeHtml(item.skill)}</span><button class="del-skill text-xs px-2 py-0.5 rounded bg-rose-600">x</button>`;
+    container.appendChild(chip);
+    chip.querySelector('.del-skill').addEventListener('click', async ()=>{ if(confirm('ลบทักษะนี้?')){ const ok = await deleteTableById('skills', item.id); if(ok) renderSkills(); else alert('ลบไม่สำเร็จ'); }});
+  });
+}
+async function addSkillFromInput(){ const input = document.getElementById('skill-input'); if(!input) return; const v = input.value.trim(); if(!v) return; const rec = await insertTable('skills', { skill: v }); if(rec) { input.value=''; renderSkills(); } else alert('เพิ่มไม่สำเร็จ'); }
+async function clearSkills(){ if(!confirm('ลบทักษะทั้งหมด?')) return; const ok = await deleteAllFromTable('skills'); if(ok) renderSkills(); else alert('ลบไม่สำเร็จ'); }
+
+// ---------- Misc ----------
+async function renderMisc(){
+  const container = document.getElementById('misc-list'); if(!container) return;
+  container.innerHTML = '';
+  const list = await fetchTable('misc');
+  if(!list.length) { container.innerHTML = '<div class="text-slate-500 text-sm">ยังไม่มีข้อมูลเสริม</div>'; return; }
+  list.forEach(item => {
+    const el = document.createElement('div'); el.className='p-3 bg-slate-800 rounded border border-slate-700 flex items-start justify-between';
+    el.innerHTML = `<div><div class="font-semibold">${escapeHtml(item.title||'')}</div><div class="text-xs text-slate-400">${escapeHtml(item.detail||'')}</div></div><div class="flex gap-2"><button class="edit-misc px-2 py-1 text-xs rounded bg-amber-400 text-black">แก้ไข</button><button class="del-misc px-2 py-1 text-xs rounded bg-rose-600 text-white">ลบ</button></div>`;
+    container.appendChild(el);
+    el.querySelector('.edit-misc').addEventListener('click', ()=>promptEditMisc(item));
+    el.querySelector('.del-misc').addEventListener('click', async ()=>{ if(confirm('ลบรายการนี้?')) { const ok = await deleteTableById('misc', item.id); if(ok) renderMisc(); else alert('ลบไม่สำเร็จ'); } });
+  });
+}
+async function promptEditMisc(item){
+  const title = prompt('หัวข้อ:', item.title); if(title===null) return;
+  const detail = prompt('รายละเอียด/คำอธิบาย:', item.detail); if(detail===null) return;
+  const updated = await updateTableById('misc', item.id, { title, detail });
+  if(updated) renderMisc(); else alert('อัปเดตไม่สำเร็จ');
+}
+async function addMisc(){ const title = prompt('หัวข้อ (เช่น ประกาศนียบัตร):'); if(title===null) return; const detail = prompt('รายละเอียด/คำอธิบาย:'); if(detail===null) return; const rec = await insertTable('misc', { title, detail }); if(rec) renderMisc(); else alert('เพิ่มไม่สำเร็จ'); }
+async function clearMisc(){ if(!confirm('ลบข้อมูลเสริมทั้งหมด?')) return; const ok = await deleteAllFromTable('misc'); if(ok) renderMisc(); else alert('ลบไม่สำเร็จ'); }
+
+// ---------- Load viewer bio (reads from supabase tables) ----------
+async function loadViewerBio(){
+  // personal
+  let personal = {};
+  try{
+    const { data } = await supabase.from('personal_bio').select('*').eq('id',1).single();
+    personal = data || {};
+  }catch(e){ console.warn('loadViewerBio personal', e); }
+
+  // other lists
+  const [edu, exp, skills, misc] = await Promise.all([
+    fetchTable('education'),
+    fetchTable('experience'),
+    fetchTable('skills'),
+    fetchTable('misc')
+  ]);
+
+  const box = document.getElementById('pb-content');
+  box.innerHTML = `
+    <div>
+      <h3 class="font-semibold text-base mb-1">ข้อมูลส่วนบุคคล</h3>
+      <p>ชื่อ-นามสกุล: ${escapeHtml(personal['pi_fullname']||'')}</p>
+      <p>วันเกิด: ${escapeHtml(personal['pi_dob']||'')}</p>
+      <p>ที่อยู่: ${escapeHtml(personal['pi_address']||'')}</p>
+      <p>เบอร์โทร: ${escapeHtml(personal['pi_phone']||'')}</p>
+      <p>อีเมล: ${escapeHtml(personal['pi_email']||'')}</p>
+      <p>สถานภาพ: ${escapeHtml(personal['pi_status']||'')}</p>
+      <p>สัญชาติ/ศาสนา: ${escapeHtml(personal['pi_nationality']||'')}</p>
+    </div>
+
+    <div>
+      <h3 class="font-semibold text-base mb-1">ประวัติการศึกษา</h3>
+      ${edu.length? edu.map(e=>`<p>- ${escapeHtml(e.level)} / ${escapeHtml(e.institution)} (${escapeHtml(e.year)}) GPA: ${escapeHtml(e.gpa)}</p>`).join('') : '<p class="text-slate-500">ไม่มีข้อมูล</p>'}
+    </div>
+
+    <div>
+      <h3 class="font-semibold text-base mb-1">ประสบการณ์ทำงาน</h3>
+      ${exp.length? exp.map(ex=>`<p>- ${escapeHtml(ex.company)} | ${escapeHtml(ex.position)} (${escapeHtml(ex.period)})</p>`).join('') : '<p class="text-slate-500">ไม่มีข้อมูล</p>'}
+    </div>
+
+    <div>
+      <h3 class="font-semibold text-base mb-1">ทักษะ</h3>
+      ${skills.length? skills.map(s=>`<span class='inline-block bg-slate-700 px-2 py-1 rounded mr-1 mb-1'>${escapeHtml(s.skill)}</span>`).join('') : '<p class="text-slate-500">ไม่มีข้อมูล</p>'}
+    </div>
+
+    <div>
+      <h3 class="font-semibold text-base mb-1">ข้อมูลเสริม</h3>
+      ${misc.length? misc.map(m=>`<p>- ${escapeHtml(m.title)}: ${escapeHtml(m.detail)}</p>`).join('') : '<p class="text-slate-500">ไม่มีข้อมูล</p>'}
+    </div>
+  `;
+}
+
+// ---------- Initial wiring ----------
+document.addEventListener('DOMContentLoaded', ()=>{
+  document.getElementById('save-personal-info')?.addEventListener('click', savePersonalInfoToServer);
+  document.getElementById('add-education-btn')?.addEventListener('click', addEducation);
+  document.getElementById('clear-education-btn')?.addEventListener('click', clearEducation);
+  document.getElementById('add-experience-btn')?.addEventListener('click', addExperience);
+  document.getElementById('clear-experience-btn')?.addEventListener('click', clearExperience);
+  document.getElementById('add-skill-btn')?.addEventListener('click', addSkillFromInput);
+  document.getElementById('skill-input')?.addEventListener('keydown',(e)=>{ if(e.key==='Enter'){ e.preventDefault(); addSkillFromInput(); }});
+  document.getElementById('clear-skills-btn')?.addEventListener('click', clearSkills);
+  document.getElementById('add-misc-btn')?.addEventListener('click', addMisc);
+  document.getElementById('clear-misc-btn')?.addEventListener('click', clearMisc);
+
+  // render initial
+  loadPersonalInfo(); renderEducation(); renderExperience(); renderSkills(); renderMisc();
+
+  // --- FIX: Dashboard menu switching ---
+  const menuProfile = document.getElementById('menu-profile-settings');
+  const menuBio = document.getElementById('menu-personal-bio');
+  const sectionProfile = document.getElementById('profile-settings');
+  const sectionBio = document.getElementById('personal-bio-admin');
+
+  if(menuProfile && menuBio && sectionProfile && sectionBio){
+    menuProfile.onclick = () => {
+      sectionProfile.classList.remove('hidden');
+      sectionBio.classList.add('hidden');
+    };
+    menuBio.onclick = () => {
+      sectionProfile.classList.add('hidden');
+      sectionBio.classList.remove('hidden');
+    };
+  }
+  loadPersonalInfo(); renderEducation(); renderExperience(); renderSkills(); renderMisc();
+});
+</script>
+
+<script>
+async function uploadFile(bucket, file) {
+  if (!file) return null;
+  const filePath = `${Date.now()}-${file.name}`;
+  if(!supabase || !supabase.storage) { console.warn('Supabase storage not available'); return null; }
+  const { data, error } = await supabase.storage.from(bucket).upload(filePath, file);
+  if (error) { console.error('Upload error:', error); return null; }
+  const { data: urlData } = supabase.storage.from(bucket).getPublicUrl(filePath);
+  return urlData.publicUrl;
+}
+
+document.getElementById('save-profile-btn')?.addEventListener('click', async () => {
+  const name = document.getElementById('artist-name').value;
+  const bio = document.getElementById('artist-bio').value;
+  const facebook = document.getElementById('artist-facebook').value;
+  const bannerFile = document.getElementById('banner-upload').files[0];
+  const avatarFile = document.getElementById('avatar-upload').files[0];
+
+  let existing = { data: null };
+  if(supabase){
+    try{ existing = await supabase.from('profile').select('*').eq('id',1).single(); }catch(e){ console.warn('Could not fetch existing profile', e); }
+  }
+
+  const bannerUrl = bannerFile ? await uploadFile('profile-data', bannerFile) : existing.data?.banner_url;
+  const avatarUrl = avatarFile ? await uploadFile('profile-data', avatarFile) : existing.data?.avatar_url;
+
+  if(supabase){
+    try{
+      const { data, error } = await supabase.from('profile').upsert({ id: 1, name, bio, facebook, banner_url: bannerUrl, avatar_url: avatarUrl });
+      if (error) { alert('❌ เก็บข้อมูลไม่สำเร็จ'); console.error(error); return; }
+    }catch(e){ console.warn('Profile upsert failed', e); }
+  }
+
+  const popup = document.createElement('div');
+  popup.className = 'fixed top-5 right-5 bg-emerald-500 text-black px-4 py-2 rounded shadow-xl animate-pulse';
+  popup.innerText = 'บันทึกสำเร็จ!';
+  document.body.appendChild(popup);
+  setTimeout(() => popup.remove(), 2000);
+
+  loadProfile();
+
+  document.getElementById('artist-name').value = '';
+  document.getElementById('artist-bio').value = '';
+  document.getElementById('artist-facebook').value = '';
+  document.getElementById('banner-upload').value = '';
+  document.getElementById('avatar-upload').value = '';
+});
+</script>
+
+<script>
+// === Toggle Viewer / Admin ===
+const viewerBtn = document.getElementById('viewerModeBtn');
+const adminBtn = document.getElementById('adminModeBtn');
+const viewerSection = document.getElementById('viewer-section');
+const adminSection = document.getElementById('admin-section');
+
+viewerBtn.onclick = () => {
+  viewerSection.classList.remove('hidden');
+  adminSection.classList.add('hidden');
+  viewerBtn.classList.add('bg-slate-100','text-slate-900');
+  adminBtn.classList.remove('bg-slate-100','text-slate-900');
+};
+
+adminBtn.onclick = () => {
+  viewerSection.classList.add('hidden');
+  adminSection.classList.remove('hidden');
+  adminBtn.classList.add('bg-slate-100','text-slate-900');
+  viewerBtn.classList.remove('bg-slate-100','text-slate-900');
+};
+</script>
+
+<script>
+// === Load profile data into viewer ===
+async function loadProfile() {
+  if(!supabase) return;
+  try{
+    const { data, error } = await supabase.from('profile').select('*').eq('id', 1).single();
+    if (error || !data) return;
+    if (data.banner_url) document.getElementById('hero-banner').style.backgroundImage = `url(${data.banner_url})`;
+    if (data.avatar_url) {
+      const img = document.getElementById('profile-avatar-img');
+      img.style.display = 'block';
+      img.src = data.avatar_url;
+      img.classList.remove('hidden');
+      document.getElementById('profile-avatar-fallback').classList.add('hidden');
     }
+    document.getElementById('hero-title').textContent = data.name || '';
+    document.getElementById('hero-tagline').textContent = data.bio || '';
+    document.getElementById('facebook-link').href = data.facebook || '#';
+  }catch(e){ console.warn('loadProfile failed', e); }
+}
+loadProfile();
+</script>
 
-    // CRUD helpers
-    async function createWork(data){ setStatus('creating work...'); const { data: d, error } = await supabase.from('works').insert([data]).select(); if(error){ console.error(error); setStatus('error'); alert('Create error: '+error.message); return null;} setStatus('created'); await loadWorks(); return d && d[0]; }
-    async function updateWorkInDb(id, data){ setStatus('updating...'); const { data: d, error } = await supabase.from('works').update(data).eq('id', id).select(); if(error){ console.error(error); setStatus('error'); alert('Update error: '+error.message); return null;} setStatus('updated'); await loadWorks(); return d && d[0]; }
-    async function deleteWorkInDb(id){ if(!confirm('ลบผลงานใช่หรือไม่?')) return; setStatus('deleting...'); const { error } = await supabase.from('works').delete().eq('id', id); if(error){ console.error(error); setStatus('error'); alert('Delete error: '+error.message); return; } setStatus('deleted'); await loadWorks(); }
+ <script>
+// === VIEWER TAB SWITCH ===
+const btnBio = document.getElementById('nav-1');
+const btnWork = document.getElementById('nav-work');
+const btnFav = document.getElementById('nav-favorites');
 
-    async function loadWorks(){ setStatus('loading works...'); const { data, error } = await supabase.from('works').select('*').order('created_at', {ascending:false}); if(error){ console.error(error); setStatus('error'); return; } renderWorkList(data||[]); renderWorkGrid(data||[]); setStatus('works loaded'); }
+const secBio = document.getElementById('personal-bio-view');
+const secWork = document.getElementById('work-section');
+const secFav = document.getElementById('favorites-section');
 
-    async function saveHero(){ const name = document.getElementById('adminName').value.trim(); const tagline = document.getElementById('adminTagline').value.trim(); const banner = document.getElementById('adminBanner').value.trim(); const profile = document.getElementById('adminProfile').value.trim(); setStatus('saving hero...'); const payload = { id: 1, name, tagline, banner_url: banner, profile_url: profile }; const { data, error } = await supabase.from('config_main').upsert(payload).select(); if(error){ console.error(error); setStatus('error'); alert('Save hero error: '+error.message); return; } await loadHero(); setStatus('hero saved'); alert('บันทึกเรียบร้อย'); }
-
-    async function loadHero(){ const res = await supabase.from('config_main').select('*').eq('id',1).limit(1).maybeSingle(); if(res.error){ console.warn(res.error); } const data = res.data; if(data){ document.getElementById('hero-name').textContent = data.name || 'ชื่อศิลปิน'; document.getElementById('hero-tagline').textContent = data.tagline || ''; if(data.banner_url) document.getElementById('hero-banner').style.backgroundImage = `url('${data.banner_url}')`; if(data.profile_url) document.getElementById('avatarWrap').innerHTML = `<img src="${data.profile_url}" class="w-full h-full object-cover"/>`; document.getElementById('adminName').value = data.name||''; document.getElementById('adminTagline').value = data.tagline||''; document.getElementById('adminBanner').value = data.banner_url||''; document.getElementById('adminProfile').value = data.profile_url||''; } }
-
-    function clearWorkForm(){ document.getElementById('workTitle').value=''; document.getElementById('workCategory').value=''; document.getElementById('workImage').value=''; document.getElementById('workDesc').value=''; editingWorkId = null; document.getElementById('updateWork').disabled = true; }
-
-    function renderWorkList(items){ const el = document.getElementById('workList'); el.innerHTML=''; items.forEach(it=>{ const row = document.createElement('div'); row.className='flex items-center justify-between p-2 bg-slate-800 rounded'; row.innerHTML = `<div class="min-w-0"><div class="text-sm">${escapeHtml(it.title||'')}</div><div class="text-xs text-slate-400">${escapeHtml(it.category||'')}</div></div><div class="flex gap-2"><button data-id="${it.id}" class="editBtn px-2 py-1 bg-slate-100 text-slate-900 text-xs rounded">แก้ไข</button><button data-id="${it.id}" class="delBtn px-2 py-1 bg-slate-700 text-xs rounded">ลบ</button></div>`; el.appendChild(row); }); Array.from(el.querySelectorAll('.editBtn')).forEach(b=>b.onclick=()=>onEditWork(b.dataset.id, items.find(x=>x.id==b.dataset.id))); Array.from(el.querySelectorAll('.delBtn')).forEach(b=>b.onclick=()=>deleteWorkInDb(b.dataset.id)); }
-
-    function onEditWork(id, data){ editingWorkId = id; document.getElementById('workTitle').value = data.title||''; document.getElementById('workCategory').value = data.category||''; document.getElementById('workImage').value = data.image_url||''; document.getElementById('workDesc').value = data.description||''; document.getElementById('updateWork').disabled=false; }
-
-    function renderWorkGrid(items){ const grid = document.getElementById('contentArea'); const html = ['<div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">']; items.forEach(it=>{ html.push(`<article class="bg-slate-900 p-3 rounded-lg"><div class="w-full h-44 bg-slate-800 overflow-hidden mb-2">${it.image_url?`<img src='${escapeAttr(it.image_url)}' class='w-full h-full object-cover'/>`:'<div class="w-full h-full flex items-center justify-center text-slate-500">No image</div>'}</div><h4 class="font-semibold">${escapeHtml(it.title||'')}</h4><p class="text-xs text-slate-400">${escapeHtml(it.category||'')}</p><p class="text-xs text-slate-300 mt-2 line-clamp-2">${escapeHtml(it.description||'')}</p></article>`); }); html.push('</div>'); grid.innerHTML = html.join(''); }
-
-    // Utils
-    function escapeHtml(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
-    function escapeAttr(s){ return String(s).replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
-
-    async function loadAll(){ if(!supabase){ setStatus('no supabase'); return; } await loadHero(); await loadWorks(); }
-
-    // DOM ready init
-    document.addEventListener('DOMContentLoaded', async ()=>{
-      adminPanel = document.getElementById('admin'); viewerBtn = document.getElementById('viewerModeBtn'); adminBtn = document.getElementById('adminModeBtn'); // connectBtn removed
-
-      // removed credentials populate
-      connectSupabase(SUPABASE_URL, SUPABASE_KEY); setStatus('connected');
-      await loadAll();
-
-      // Handlers
-      // removed credentials UI').addEventListener('click', ()=>{ localStorage.removeItem('SUPABASE_URL'); localStorage.removeItem('SUPABASE_KEY'); document.getElementById('supabaseUrl').value=''; document.getElementById('supabaseKey').value=''; setStatus('credentials cleared'); });
-      // auto connect handled below);
-
-      // auth - show login modal when admin requested and not logged in
-      logoutBtn = document.getElementById('logoutBtn');
-
-      adminBtn.addEventListener('click', async ()=>{
-        if(!supabase){ alert('ยังไม่ได้เชื่อมต่อ Supabase'); return; }
-        const { data: userData, error } = await supabase.auth.getUser();
-        const user = userData && userData.user ? userData.user : null;
-        if(!user){ document.getElementById('loginModal').classList.remove('hidden'); return; }
-        adminPanel.classList.remove('hidden'); document.getElementById('viewer').classList.add('hidden'); logoutBtn.classList.remove('hidden');
-      });
-
-      viewerBtn.addEventListener('click', ()=>{ adminPanel.classList.add('hidden'); document.getElementById('viewer').classList.remove('hidden'); });
-
-      // login modal handlers
-      logoutBtn.addEventListener('click', async ()=>{
-        await supabase.auth.signOut();
-        adminPanel.classList.add('hidden');
-        logoutBtn.classList.add('hidden');
-        alert('ออกจากระบบแล้ว');
-      });
-
-      document.getElementById('loginSubmit').addEventListener('click', async ()=>{
-        const email = document.getElementById('loginEmail').value.trim();
-        const pass = document.getElementById('loginPass').value.trim();
-        if(!email || !pass) return alert('กรุณากรอก Email และ Password');
-        const { data, error } = await supabase.auth.signInWithPassword({ email, password: pass });
-        if(error){ alert('เข้าสู่ระบบไม่สำเร็จ: '+error.message); return; }
-        document.getElementById('loginModal').classList.add('hidden'); adminPanel.classList.remove('hidden'); await loadAll();
-      });
-      document.getElementById('loginClose').addEventListener('click', ()=>document.getElementById('loginModal').classList.add('hidden'));
-
-      // admin hero buttons
-      document.getElementById('saveHero').addEventListener('click', async ()=>{ if(!supabase) return alert('ไม่เชื่อมต่อ Supabase'); await saveHero(); });
-      document.getElementById('loadHero').addEventListener('click', async ()=>{ if(!supabase) return alert('ไม่เชื่อมต่อ Supabase'); await loadHero(); });
-
-      // works form
-      document.getElementById('createWork').addEventListener('click', async ()=>{ if(!supabase) return alert('ไม่เชื่อมต่อ Supabase'); const title = document.getElementById('workTitle').value.trim(); const category = document.getElementById('workCategory').value.trim(); const image_url = document.getElementById('workImage').value.trim(); const description = document.getElementById('workDesc').value.trim(); if(!title) return alert('กรุณากรอกชื่อผลงาน'); await createWork({title, category, image_url, description}); clearWorkForm(); });
-      document.getElementById('updateWork').addEventListener('click', async ()=>{ if(!supabase) return alert('ไม่เชื่อมต่อ Supabase'); if(!editingWorkId) return alert('ไม่มีรายการที่จะแก้ไข'); const title = document.getElementById('workTitle').value.trim(); const category = document.getElementById('workCategory').value.trim(); const image_url = document.getElementById('workImage').value.trim(); const description = document.getElementById('workDesc').value.trim(); await updateWorkInDb(editingWorkId,{title, category, image_url, description}); clearWorkForm(); });
-      document.getElementById('cancelWork').addEventListener('click', ()=>clearWorkForm());
-
-      // nav
-      document.getElementById('navWork').addEventListener('click', async ()=>{ if(!supabase) return alert('Not connected'); await loadWorks(); });
-      document.getElementById('navFav').addEventListener('click', ()=>{ document.getElementById('contentArea').innerHTML='<p class="text-slate-400">Favorites viewer - implement similarly to works.</p>'; });
-
-    });
-
-    // IMPORTANT: Database schema expected (create these tables in Supabase):
-    // Table: config_main (id int primary key, name text, tagline text, banner_url text, profile_url text, created_at timestamptz default now())
-    // Table: works (id serial primary key, title text, category text, image_url text, description text, created_at timestamptz default now())
-
-    // If you want, I can create SQL migration statements for these tables — tell me and I'll add them here.
-  </script>
- </body>
+function activate(btn){
+  [btnBio,btnWork,btnFav].forEach(b=>b.classList.remove('text-slate-50','border-sky-400'));
+  btn.classList.add('text-slate-50','border-sky-400');
+}
+function showSection(target){
+  secBio.classList.add('hidden');
+  secWork.classList.add('hidden');
+  secFav.classList.add('hidden');
+  target.classList.remove('hidden');
+}
+btnBio.onclick = ()=>{ activate(btnBio); showSection(secBio); loadViewerBio(); };
+btnWork.onclick = ()=>{ activate(btnWork); showSection(secWork); };
+btnFav.onclick = ()=>{ activate(btnFav); showSection(secFav); };
+</script>
+</body>
 </html>
