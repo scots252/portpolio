@@ -23,8 +23,6 @@
     console.warn('Could not clear supabase-related localStorage keys', e);
   }
   </script>
-  <script src="/_sdk/element_sdk.js"></script>
-  <script src="/_sdk/data_sdk.js"></script>
   <style>
       body { box-sizing: border-box; }
       html, body { height: 100%; width: 100%; }
@@ -37,8 +35,14 @@
       .portfolio-card { transition: transform 150ms ease, box-shadow 150ms ease; }
       .portfolio-card:hover { transform: translateY(-4px); }
       .line-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+      .skill-chip { padding:6px 10px; border-radius:999px; background:#1f2937; color:#fff; display:inline-flex; gap:8px; align-items:center; }
+      .skill-chip button{ background:#ef4444; color:white; border:none; padding:2px 6px; border-radius:6px; cursor:pointer; }
     </style>
-  <style>@view-transition { navigation: auto; }</style>
+<style>
+.fadeOut { opacity:0; transform:scale(0.8); transition:all .25s ease; }
+.fadeIn { opacity:1; transform:scale(1); transition:all .25s ease; }
+.popup-msg { position:fixed; top:20px; right:20px; background:#10b981; color:#000; padding:10px 16px; border-radius:8px; z-index:9999; }
+</style>
  </head>
  <body class="w-full h-full m-0 p-0">
   <div id="app" class="app-wrapper w-full h-full bg-slate-950 text-slate-50 flex flex-col">
@@ -105,11 +109,28 @@
 <!-- Quick Menu -->
 <div class="flex gap-3 mb-6 text-sm">
   <button id="menu-profile-settings" class="px-4 py-2 rounded bg-slate-800 border border-slate-700 hover:bg-slate-700">1. ตั้งค่าหน้าโปรไฟล์</button>
-  <button id="menu-personal-bio" class="px-4 py-2 rounded bg-slate-800 border border-slate-700 hover:bg-slate-700">2. ประวัติส่วนตัว</button>
+  <button id="menu-personal-bio" class="px-4 py-2 rounded bg-slate-800 border border-slate-700 hover:bg-slate-700">2. ประวัติส่วนบุคคล</button>
+  <button id="menu-work-manage" onclick="document.getElementById('profile-settings').classList.add('hidden');document.getElementById('personal-bio-admin').classList.add('hidden');document.getElementById('work-manage').classList.remove('hidden');" class="px-4 py-2 rounded bg-slate-800 border border-slate-700 hover:bg-slate-700">3. จัดการผลงาน</button>
 </div>
 
 
 <!-- ===== Profile Settings ===== -->
+
+<!-- ===== Work Manage (Upload Works) ===== -->
+<div id="work-manage" class="hidden mt-6 bg-slate-800 p-4 rounded-xl border border-slate-700 shadow-lg">
+  <h2 class="text-lg font-semibold mb-4">จัดการผลงาน</h2>
+  <div class="space-y-3">
+    <label class="text-sm">ชื่อผลงาน</label>
+    <input id="work-title" class="w-full px-3 py-2 rounded bg-slate-900 border border-slate-700" />
+    <label class="text-sm">ลิงก์ภาพหรือวิดีโอ (ตัวเลือก)</label>
+    <input id="work-link" class="w-full px-3 py-2 rounded bg-slate-900 border border-slate-700" />
+    <label class="text-sm">อัปโหลดรูปหรือวิดีโอ (ตัวเลือก)</label>
+    <input id="work-file" type="file" accept="image/*,video/*" class="w-full text-sm" />
+    <button id="save-work-btn" class="w-full mt-2 px-4 py-2 bg-emerald-400 text-black rounded font-semibold">บันทึกผลงาน</button>
+  </div>
+  <h3 class="text-md font-semibold mt-6 mb-2">รายการผลงาน</h3>
+  <div id="work-list" class="space-y-2"></div>
+</div>
 <div id="profile-settings">
 <div class="bg-slate-800 p-4 rounded-xl border border-slate-700 shadow-lg space-y-3">
  <h2 class="text-lg font-semibold">ตั้งค่าหน้าโปรไฟล์</h2>
@@ -147,6 +168,24 @@
   </div>
 
   <!-- Education -->
+
+<!-- === MODAL: Education Form === -->
+<div id="edu-modal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
+  <div class="bg-slate-800 w-full max-w-md p-6 rounded-xl border border-slate-700 shadow-xl">
+    <h3 id="edu-modal-title" class="text-lg font-semibold mb-4">เพิ่มการศึกษา</h3>
+    <div class="space-y-3">
+      <input id="edu-level" placeholder="ระดับการศึกษา" class="w-full px-3 py-2 rounded bg-slate-900 border border-slate-700" />
+      <input id="edu-inst" placeholder="สถาบัน" class="w-full px-3 py-2 rounded bg-slate-900 border border-slate-700" />
+      <input id="edu-major" placeholder="สาขา" class="w-full px-3 py-2 rounded bg-slate-900 border border-slate-700" />
+      <input id="edu-year" placeholder="ปีที่จบ" class="w-full px-3 py-2 rounded bg-slate-900 border border-slate-700" />
+      <input id="edu-gpa" placeholder="GPA" class="w-full px-3 py-2 rounded bg-slate-900 border border-slate-700" />
+    </div>
+    <div class="flex justify-end gap-2 mt-5">
+      <button id="edu-cancel" class="px-4 py-2 bg-slate-700 rounded">ยกเลิก</button>
+      <button id="edu-save" class="px-4 py-2 bg-emerald-400 text-black rounded font-semibold">บันทึก</button>
+    </div>
+  </div>
+</div>
   <div class="bg-slate-900 p-4 rounded mb-4">
     <h3 class="font-semibold mb-2">2. ประวัติการศึกษา</h3>
     <p class="text-xs text-slate-400 mb-2">เพิ่ม / แก้ไข / ลบ รายการการศึกษา</p>
@@ -157,7 +196,24 @@
     <div id="education-list" class="space-y-2"></div>
   </div>
 
-  <!-- Experience -->
+  <!-- Experience Modal -->
+<div id="exp-modal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
+  <div class="bg-slate-800 w-full max-w-md p-6 rounded-xl border border-slate-700 shadow-xl">
+    <h3 id="exp-modal-title" class="text-lg font-semibold mb-4">เพิ่มประสบการณ์</h3>
+    <div class="space-y-3">
+      <input id="exp-company" placeholder="ชื่อบริษัท/องค์กร" class="w-full px-3 py-2 rounded bg-slate-900 border border-slate-700" />
+      <input id="exp-position" placeholder="ตำแหน่งงาน" class="w-full px-3 py-2 rounded bg-slate-900 border border-slate-700" />
+      <input id="exp-period" placeholder="ช่วงเวลา (เช่น 2020-2023)" class="w-full px-3 py-2 rounded bg-slate-900 border border-slate-700" />
+      <textarea id="exp-resp" placeholder="หน้าที่และความรับผิดชอบ" class="w-full px-3 py-2 rounded bg-slate-900 border border-slate-700"></textarea>
+    </div>
+    <div class="flex justify-end gap-2 mt-5">
+      <button id="exp-cancel" class="px-4 py-2 bg-slate-700 rounded">ยกเลิก</button>
+      <button id="exp-save" class="px-4 py-2 bg-emerald-400 text-black rounded font-semibold">บันทึก</button>
+    </div>
+  </div>
+</div>
+
+<!-- Experience -->
   <div class="bg-slate-900 p-4 rounded mb-4">
     <h3 class="font-semibold mb-2">3. ประวัติการทำงานและประสบการณ์</h3>
     <p class="text-xs text-slate-400 mb-2">เพิ่ม / แก้ไข / ลบ รายการประสบการณ์</p>
@@ -175,22 +231,47 @@
     <div class="flex gap-2 mb-3">
       <input id="skill-input" placeholder="พิมพ์ทักษะ แล้วกด Enter" class="px-3 py-2 rounded bg-slate-800 border border-slate-700 flex-1" />
       <button id="add-skill-btn" class="px-3 py-2 bg-sky-500 rounded text-black">เพิ่ม</button>
-      <button id="clear-skills-btn" class="px-3 py-2 bg-rose-600 rounded text-white">ลบทั้งหมด</button>
+     
     </div>
     <div id="skills-list" class="mt-3 flex flex-wrap gap-2"></div>
   </div>
-
-  <!-- Misc -->
-  <div class="bg-slate-900 p-4 rounded mb-4">
-    <h3 class="font-semibold mb-2">5. ข้อมูลเสริมและกิจกรรม</h3>
-    <p class="text-xs text-slate-400 mb-2">เพิ่ม / แก้ไข / ลบ ข้อมูลเสริม</p>
-    <div class="flex gap-2 mb-3">
-      <button id="add-misc-btn" class="px-3 py-1 bg-sky-500 rounded text-black text-sm">+ เพิ่มข้อมูลเสริม</button>
-      <button id="clear-misc-btn" class="px-3 py-1 bg-rose-600 rounded text-white text-sm">ลบทั้งหมด</button>
-    </div>
-    <div id="misc-list" class="space-y-2"></div>
-  </div>
-</div>
+  <script>
+// === WORK MANAGEMENT (FULL WORKING V2) ===
+async function renderWorkList(){
+  const box=document.getElementById('work-list'); if(!box) return;
+  box.innerHTML='<div class="text-xs text-slate-400">Loading...</div>';
+  const { data, error } = await supabase.from('works').select('*').eq('user_id',1).order('id',{ascending:false});
+  if(error){ box.innerHTML='<div class="text-red-400 text-xs">โหลดข้อมูลล้มเหลว</div>'; return; }
+  if(!data || !data.length){ box.innerHTML='<div class="text-slate-500 text-sm">ยังไม่มีผลงาน</div>'; return; }
+  box.innerHTML='';
+  data.forEach(item=>{
+    const el=document.createElement('div'); el.className='p-3 bg-slate-800 rounded flex justify-between items-center';
+    el.innerHTML=`<div><div class='font-semibold text-slate-100'>${escapeHtml(item.title)}</div><div class='text-xs text-slate-400 break-all'>${escapeHtml(item.media_url||'')}</div></div><button class='del-work px-2 py-1 text-xs bg-rose-600 rounded'>ลบ</button>`;
+    box.appendChild(el);
+    el.querySelector('.del-work').onclick=async()=>{ await supabase.from('works').delete().eq('id',item.id); renderWorkList(); };
+  });
+}
+async function saveWork(){
+  const title=document.getElementById('work-title').value.trim();
+  const link=document.getElementById('work-link').value.trim();
+  const file=document.getElementById('work-file').files[0];
+  if(!title){ alert('กรุณาใส่ชื่อผลงาน'); return; }
+  let mediaUrl='';
+  if(link) mediaUrl=link;
+  if(file) mediaUrl=await uploadFile('work-media',file);
+  const { error } = await supabase.from('works').insert({title,media_url:mediaUrl,user_id:1});
+  if(error){ alert('บันทึกผลงานล้มเหลว'); return; }
+  document.getElementById('work-title').value='';
+  document.getElementById('work-link').value='';
+  document.getElementById('work-file').value='';
+  const p=document.createElement('div'); p.className='fixed top-5 right-5 bg-emerald-500 text-black px-4 py-2 rounded shadow-xl'; p.innerText='บันทึกสำเร็จ!'; document.body.appendChild(p); setTimeout(()=>p.remove(),2000);
+  renderWorkList();
+}
+document.getElementById('save-work-btn')?.addEventListener('click', saveWork);
+renderWorkList();
+</script>
+</body>
+</html>
 
 <script>
 // Constants
@@ -288,86 +369,132 @@ async function deleteAllFromTable(table){
 async function renderEducation(){
   const container = document.getElementById('education-list'); if(!container) return;
   container.innerHTML = '<div class="text-xs text-slate-400">Loading...</div>';
-  const list = await fetchTable('education');
+  let list = await fetchTable('education'); list = list.sort((a,b)=> (parseInt(a.year)||0) - (parseInt(b.year)||0));
   container.innerHTML = '';
   if(!list.length) { container.innerHTML = '<div class="text-slate-500 text-sm">ยังไม่มีข้อมูลการศึกษา</div>'; return; }
   list.forEach(item => {
     const el = document.createElement('div'); el.className='p-3 bg-slate-800 rounded border border-slate-700 flex items-start justify-between';
     el.innerHTML = `<div><div class="font-semibold">${escapeHtml(item.level||'')} — ${escapeHtml(item.institution||'')}</div><div class="text-xs text-slate-400">สาขา: ${escapeHtml(item.major||'')} | ปี: ${escapeHtml(item.year||'')} | GPA: ${escapeHtml(item.gpa||'')}</div></div><div class="flex gap-2"><button class="edit-edu px-2 py-1 text-xs rounded bg-amber-400 text-black">แก้ไข</button><button class="del-edu px-2 py-1 text-xs rounded bg-rose-600 text-white">ลบ</button></div>`;
     container.appendChild(el);
-    el.querySelector('.edit-edu').addEventListener('click', ()=>promptEditEducation(item));
+    // attach listeners
+    el.querySelector('.edit-edu').addEventListener('click', ()=> openEduModal(true, item));
     el.querySelector('.del-edu').addEventListener('click', async ()=>{ if(confirm('ลบรายการนี้?')) { const ok = await deleteTableById('education', item.id); if(ok) renderEducation(); else alert('ลบไม่สำเร็จ'); } });
   });
 }
+
 async function promptEditEducation(item){
-  const level = prompt('ระดับการศึกษา', item.level); if(level===null) return;
-  const institution = prompt('ชื่อสถาบัน:', item.institution); if(institution===null) return;
-  const major = prompt('สาขาวิชาเอก/คณะ:', item.major); if(major===null) return;
-  const year = prompt('ปีที่สำเร็จการศึกษา:', item.year); if(year===null) return;
-  const gpa = prompt('เกรดเฉลี่ย (GPA):', item.gpa); if(gpa===null) return;
-  const updated = await updateTableById('education', item.id, { level, institution, major, year, gpa });
-  if(updated) renderEducation(); else alert('อัปเดตไม่สำเร็จ');
+  // kept for backward compatibility but now opens modal
+  openEduModal(true, item);
 }
-async function addEducation(){
-  const level = prompt('ระดับการศึกษา (เช่น ปริญญาตรี)'); if(level===null) return;
-  const institution = prompt('ชื่อสถาบัน:'); if(institution===null) return;
-  const major = prompt('สาขาวิชาเอก/คณะ:'); if(major===null) return;
-  const year = prompt('ปีที่สำเร็จการศึกษา:'); if(year===null) return;
-  const gpa = prompt('เกรดเฉลี่ย (GPA):'); if(gpa===null) return;
-  const rec = await insertTable('education', { level, institution, major, year, gpa });
-  if(rec) renderEducation(); else alert('เพิ่มข้อมูลไม่สำเร็จ');
+
+let eduEditingId = null;
+
+function openEduModal(edit=false, item={}) {
+  const modal = document.getElementById('edu-modal');
+  if(!modal) return;
+  document.getElementById('edu-modal-title').innerText = edit ? 'แก้ไขการศึกษา' : 'เพิ่มการศึกษา';
+  eduEditingId = edit ? item.id : null;
+  document.getElementById('edu-level').value = item.level || '';
+  document.getElementById('edu-inst').value = item.institution || '';
+  document.getElementById('edu-major').value = item.major || '';
+  document.getElementById('edu-year').value = item.year || '';
+  document.getElementById('edu-gpa').value = item.gpa || '';
+  modal.classList.remove('hidden');
 }
+function closeEduModal(){ const modal = document.getElementById('edu-modal'); if(modal) modal.classList.add('hidden'); }
+
+// handlers will be attached inside DOMContentLoaded for safety
+
+async function addEducation(){ openEduModal(false); }
+
 async function clearEducation(){ if(!confirm('ลบการศึกษาทั้งหมด?')) return; const ok = await deleteAllFromTable('education'); if(ok) renderEducation(); else alert('ลบไม่สำเร็จ'); }
 
 // ---------- Experience ----------
+let expEditingId = null;
+function openExpModal(edit=false, item={}){
+  const m=document.getElementById('exp-modal'); if(!m) return;
+  document.getElementById('exp-modal-title').innerText = edit? 'แก้ไขประสบการณ์':'เพิ่มประสบการณ์';
+  expEditingId = edit? item.id:null;
+  document.getElementById('exp-company').value=item.company||'';
+  document.getElementById('exp-position').value=item.position||'';
+  document.getElementById('exp-period').value=item.period||'';
+  document.getElementById('exp-resp').value=item.responsibilities||'';
+  m.classList.remove('hidden');
+}
+function closeExpModal(){ document.getElementById('exp-modal')?.classList.add('hidden'); }
 async function renderExperience(){
-  const container = document.getElementById('experience-list-admin'); if(!container) return;
-  container.innerHTML = '<div class="text-xs text-slate-400">Loading...</div>';
-  const list = await fetchTable('experience');
-  container.innerHTML = '';
-  if(!list.length) { container.innerHTML = '<div class="text-slate-500 text-sm">ยังไม่มีข้อมูลประสบการณ์</div>'; return; }
-  list.forEach(item => {
-    const el = document.createElement('div'); el.className='p-3 bg-slate-800 rounded border border-slate-700 flex items-start justify-between';
-    el.innerHTML = `<div><div class="font-semibold">${escapeHtml(item.company||'')} — ${escapeHtml(item.position||'')}</div><div class="text-xs text-slate-400">ช่วงเวลา: ${escapeHtml(item.period||'')}</div><div class="text-sm text-slate-300 mt-2">${escapeHtml(item.responsibilities||'')}</div></div><div class="flex gap-2"><button class="edit-exp px-2 py-1 text-xs rounded bg-amber-400 text-black">แก้ไข</button><button class="del-exp px-2 py-1 text-xs rounded bg-rose-600 text-white">ลบ</button></div>`;
+  const container=document.getElementById('experience-list-admin'); if(!container) return;
+  container.innerHTML='<div class="text-xs text-slate-400">Loading...</div>';
+  let list=await fetchTable('experience');
+  // SORT: old years first (ascending)
+  list = list.sort((a,b)=>{
+    const ay = parseInt((a.period||'').split('-')[0])||0;
+    const by = parseInt((b.period||'').split('-')[0])||0;
+    return ay - by;
+  });
+  container.innerHTML='';
+  if(!list.length){ container.innerHTML='<div class="text-slate-500 text-sm">ยังไม่มีข้อมูลประสบการณ์</div>'; return; }
+  list.forEach(item=>{
+    const el=document.createElement('div'); el.className='p-3 bg-slate-800 rounded border border-slate-700 flex items-start justify-between';
+    el.innerHTML=`<div><div class="font-semibold">${escapeHtml(item.company||'')} — ${escapeHtml(item.position||'')}</div><div class="text-xs text-slate-400">ช่วงเวลา: ${escapeHtml(item.period||'')}</div><div class="text-sm text-slate-300 mt-2">${escapeHtml(item.responsibilities||'')}</div></div><div class="flex gap-2"><button class="edit-exp px-2 py-1 text-xs rounded bg-amber-400 text-black">แก้ไข</button><button class="del-exp px-2 py-1 text-xs rounded bg-rose-600 text-white">ลบ</button></div>`;
     container.appendChild(el);
-    el.querySelector('.edit-exp').addEventListener('click', ()=>promptEditExperience(item));
-    el.querySelector('.del-exp').addEventListener('click', async ()=>{ if(confirm('ลบรายการนี้?')) { const ok = await deleteTableById('experience', item.id); if(ok) renderExperience(); else alert('ลบไม่สำเร็จ'); } });
+    el.querySelector('.edit-exp').onclick=()=>openExpModal(true,item);
+    el.querySelector('.del-exp').onclick=async()=>{ if(confirm('ลบรายการนี้?')){ const ok=await deleteTableById('experience',item.id); if(ok) renderExperience(); else alert('ลบไม่สำเร็จ'); } };
   });
 }
-async function promptEditExperience(item){
-  const company = prompt('ชื่อบริษัท/องค์กร:', item.company); if(company===null) return;
-  const position = prompt('ตำแหน่งงาน:', item.position); if(position===null) return;
-  const period = prompt('ช่วงเวลาทำงาน:', item.period); if(period===null) return;
-  const responsibilities = prompt('รายละเอียดหน้าที่/ความรับผิดชอบ:', item.responsibilities); if(responsibilities===null) return;
-  const updated = await updateTableById('experience', item.id, { company, position, period, responsibilities });
-  if(updated) renderExperience(); else alert('อัปเดตไม่สำเร็จ');
-}
-async function addExperience(){
-  const company = prompt('ชื่อบริษัท/องค์กร:'); if(company===null) return;
-  const position = prompt('ตำแหน่งงาน:'); if(position===null) return;
-  const period = prompt('ช่วงเวลาททำงาน (เช่น Jan 2020 - Dec 2022):'); if(period===null) return;
-  const responsibilities = prompt('รายละเอียดหน้าที่/ความรับผิดชอบ (สรุป):'); if(responsibilities===null) return;
-  const rec = await insertTable('experience', { company, position, period, responsibilities });
-  if(rec) renderExperience(); else alert('เพิ่มข้อมูลไม่สำเร็จ');
-}
-async function clearExperience(){ if(!confirm('ลบประสบการณ์ทั้งหมด?')) return; const ok = await deleteAllFromTable('experience'); if(ok) renderExperience(); else alert('ลบไม่สำเร็จ'); }
+async function addExperience(){ openExpModal(false); }
+async function clearExperience(){ if(!confirm('ลบประสบการณ์ทั้งหมด?')) return; const ok=await deleteAllFromTable('experience'); if(ok) renderExperience(); else alert('ลบไม่สำเร็จ'); }
 
 // ---------- Skills ----------
-async function renderSkills(){
+function showPopup(msg){
+  const p = document.createElement('div');
+  p.className='popup-msg';
+  p.textContent=msg;
+  document.body.appendChild(p);
+  setTimeout(()=>p.remove(),2000);
+}
+let skillBuffer = [];
+async function loadSkills(){
+  skillBuffer = await fetchTable('skills');
+  renderSkills();
+}
+function renderSkills(){
   const container = document.getElementById('skills-list'); if(!container) return;
   container.innerHTML = '';
-  const list = await fetchTable('skills');
-  if(!list.length) { container.innerHTML = '<div class="text-slate-500 text-sm">ยังไม่มีทักษะ</div>'; return; }
-  list.forEach(item => {
-    const chip = document.createElement('div'); chip.className='px-3 py-1 rounded-full bg-slate-700 text-sm flex items-center gap-2';
-    chip.innerHTML = `<span>${escapeHtml(item.skill)}</span><button class="del-skill text-xs px-2 py-0.5 rounded bg-rose-600">x</button>`;
+  if(!skillBuffer.length){ container.innerHTML='<div class="text-slate-500 text-sm">ยังไม่มีทักษะ</div>'; return; }
+  skillBuffer.forEach((item,idx)=>{
+    const chip=document.createElement('div');
+    chip.className='skill-chip fadeIn';
+    chip.innerHTML=`<span>${escapeHtml(item.skill)}</span>`;
+    const del=document.createElement('button'); del.textContent='x'; del.dataset.index=idx;
+    del.onclick=()=>animateRemoveSkill(idx);
+    chip.appendChild(del);
     container.appendChild(chip);
-    chip.querySelector('.del-skill').addEventListener('click', async ()=>{ if(confirm('ลบทักษะนี้?')){ const ok = await deleteTableById('skills', item.id); if(ok) renderSkills(); else alert('ลบไม่สำเร็จ'); }});
   });
 }
-async function addSkillFromInput(){ const input = document.getElementById('skill-input'); if(!input) return; const v = input.value.trim(); if(!v) return; const rec = await insertTable('skills', { skill: v }); if(rec) { input.value=''; renderSkills(); } else alert('เพิ่มไม่สำเร็จ'); }
-async function clearSkills(){ if(!confirm('ลบทักษะทั้งหมด?')) return; const ok = await deleteAllFromTable('skills'); if(ok) renderSkills(); else alert('ลบไม่สำเร็จ'); }
-
+function animateRemoveSkill(idx){
+  const item = skillBuffer[idx];
+  if(!item) return;
+  const container=document.getElementById('skills-list');
+  const chip=container.children[idx]; if(!chip) return;
+  chip.classList.add('fadeOut');
+  setTimeout(async()=>{
+    await deleteTableById('skills', item.id);
+    await loadSkills();
+    showPopup('ลบทักษะสำเร็จ!');
+  },250);
+}
+async function addSkillFromInput(){
+  const input=document.getElementById('skill-input'); if(!input) return;
+  const v=input.value.trim(); if(!v) return;
+  await insertTable('skills',{ skill:v });
+  await loadSkills(); input.value='';
+}
+async function clearSkills(){
+  if(!confirm('ลบทักษะทั้งหมด?')) return;
+  const ok = await deleteAllFromTable('skills');
+  if(ok){ await loadSkills(); showPopup('ลบทั้งหมดสำเร็จ!'); }
+}
 // ---------- Misc ----------
 async function renderMisc(){
   const container = document.getElementById('misc-list'); if(!container) return;
@@ -445,6 +572,7 @@ async function loadViewerBio(){
 
 // ---------- Initial wiring ----------
 document.addEventListener('DOMContentLoaded', ()=>{
+  // basic buttons
   document.getElementById('save-personal-info')?.addEventListener('click', savePersonalInfoToServer);
   document.getElementById('add-education-btn')?.addEventListener('click', addEducation);
   document.getElementById('clear-education-btn')?.addEventListener('click', clearEducation);
@@ -456,8 +584,40 @@ document.addEventListener('DOMContentLoaded', ()=>{
   document.getElementById('add-misc-btn')?.addEventListener('click', addMisc);
   document.getElementById('clear-misc-btn')?.addEventListener('click', clearMisc);
 
+  // modal buttons (attach after DOM ready)
+  document.getElementById('edu-cancel')?.addEventListener('click', closeEduModal);
+  document.getElementById('edu-save')?.addEventListener('click', async ()=>{
+    const level = document.getElementById('edu-level').value;
+    const institution = document.getElementById('edu-inst').value;
+    const major = document.getElementById('edu-major').value;
+    const year = document.getElementById('edu-year').value;
+    const gpa = document.getElementById('edu-gpa').value;
+
+    if(eduEditingId){
+      await updateTableById('education', eduEditingId, { level, institution, major, year, gpa });
+    } else {
+      await insertTable('education', { level, institution, major, year, gpa });
+    }
+    closeEduModal(); renderEducation();
+  });
+
+  // experience modal buttons
+  document.getElementById('exp-cancel')?.addEventListener('click', closeExpModal);
+  document.getElementById('exp-save')?.addEventListener('click', async ()=>{
+    const company = document.getElementById('exp-company').value;
+    const position = document.getElementById('exp-position').value;
+    const period = document.getElementById('exp-period').value;
+    const responsibilities = document.getElementById('exp-resp').value;
+    if(expEditingId){
+      await updateTableById('experience', expEditingId, { company, position, period, responsibilities });
+    } else {
+      await insertTable('experience', { company, position, period, responsibilities });
+    }
+    closeExpModal(); renderExperience();
+  });
+
   // render initial
-  loadPersonalInfo(); renderEducation(); renderExperience(); renderSkills(); renderMisc();
+  loadPersonalInfo(); renderEducation(); renderExperience(); loadSkills(); renderMisc();
 
   // --- FIX: Dashboard menu switching ---
   const menuProfile = document.getElementById('menu-profile-settings');
@@ -475,7 +635,6 @@ document.addEventListener('DOMContentLoaded', ()=>{
       sectionBio.classList.remove('hidden');
     };
   }
-  loadPersonalInfo(); renderEducation(); renderExperience(); renderSkills(); renderMisc();
 });
 </script>
 
@@ -549,53 +708,3 @@ adminBtn.onclick = () => {
   viewerBtn.classList.remove('bg-slate-100','text-slate-900');
 };
 </script>
-
-<script>
-// === Load profile data into viewer ===
-async function loadProfile() {
-  if(!supabase) return;
-  try{
-    const { data, error } = await supabase.from('profile').select('*').eq('id', 1).single();
-    if (error || !data) return;
-    if (data.banner_url) document.getElementById('hero-banner').style.backgroundImage = `url(${data.banner_url})`;
-    if (data.avatar_url) {
-      const img = document.getElementById('profile-avatar-img');
-      img.style.display = 'block';
-      img.src = data.avatar_url;
-      img.classList.remove('hidden');
-      document.getElementById('profile-avatar-fallback').classList.add('hidden');
-    }
-    document.getElementById('hero-title').textContent = data.name || '';
-    document.getElementById('hero-tagline').textContent = data.bio || '';
-    document.getElementById('facebook-link').href = data.facebook || '#';
-  }catch(e){ console.warn('loadProfile failed', e); }
-}
-loadProfile();
-</script>
-
- <script>
-// === VIEWER TAB SWITCH ===
-const btnBio = document.getElementById('nav-1');
-const btnWork = document.getElementById('nav-work');
-const btnFav = document.getElementById('nav-favorites');
-
-const secBio = document.getElementById('personal-bio-view');
-const secWork = document.getElementById('work-section');
-const secFav = document.getElementById('favorites-section');
-
-function activate(btn){
-  [btnBio,btnWork,btnFav].forEach(b=>b.classList.remove('text-slate-50','border-sky-400'));
-  btn.classList.add('text-slate-50','border-sky-400');
-}
-function showSection(target){
-  secBio.classList.add('hidden');
-  secWork.classList.add('hidden');
-  secFav.classList.add('hidden');
-  target.classList.remove('hidden');
-}
-btnBio.onclick = ()=>{ activate(btnBio); showSection(secBio); loadViewerBio(); };
-btnWork.onclick = ()=>{ activate(btnWork); showSection(secWork); };
-btnFav.onclick = ()=>{ activate(btnFav); showSection(secFav); };
-</script>
-</body>
-</html>
