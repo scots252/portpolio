@@ -110,27 +110,11 @@
 <div class="flex gap-3 mb-6 text-sm">
   <button id="menu-profile-settings" class="px-4 py-2 rounded bg-slate-800 border border-slate-700 hover:bg-slate-700">1. ตั้งค่าหน้าโปรไฟล์</button>
   <button id="menu-personal-bio" class="px-4 py-2 rounded bg-slate-800 border border-slate-700 hover:bg-slate-700">2. ประวัติส่วนบุคคล</button>
-  <button id="menu-work-manage" onclick="document.getElementById('profile-settings').classList.add('hidden');document.getElementById('personal-bio-admin').classList.add('hidden');document.getElementById('work-manage').classList.remove('hidden');" class="px-4 py-2 rounded bg-slate-800 border border-slate-700 hover:bg-slate-700">3. จัดการผลงาน</button>
+  <button id="menu-work-manage" class="px-4 py-2 rounded bg-slate-800 border border-slate-700 hover:bg-slate-700">3. จัดการผลงาน</button>
 </div>
 
 
 <!-- ===== Profile Settings ===== -->
-
-<!-- ===== Work Manage (Upload Works) ===== -->
-<div id="work-manage" class="hidden mt-6 bg-slate-800 p-4 rounded-xl border border-slate-700 shadow-lg">
-  <h2 class="text-lg font-semibold mb-4">จัดการผลงาน</h2>
-  <div class="space-y-3">
-    <label class="text-sm">ชื่อผลงาน</label>
-    <input id="work-title" class="w-full px-3 py-2 rounded bg-slate-900 border border-slate-700" />
-    <label class="text-sm">ลิงก์ภาพหรือวิดีโอ (ตัวเลือก)</label>
-    <input id="work-link" class="w-full px-3 py-2 rounded bg-slate-900 border border-slate-700" />
-    <label class="text-sm">อัปโหลดรูปหรือวิดีโอ (ตัวเลือก)</label>
-    <input id="work-file" type="file" accept="image/*,video/*" class="w-full text-sm" />
-    <button id="save-work-btn" class="w-full mt-2 px-4 py-2 bg-emerald-400 text-black rounded font-semibold">บันทึกผลงาน</button>
-  </div>
-  <h3 class="text-md font-semibold mt-6 mb-2">รายการผลงาน</h3>
-  <div id="work-list" class="space-y-2"></div>
-</div>
 <div id="profile-settings">
 <div class="bg-slate-800 p-4 rounded-xl border border-slate-700 shadow-lg space-y-3">
  <h2 class="text-lg font-semibold">ตั้งค่าหน้าโปรไฟล์</h2>
@@ -235,43 +219,8 @@
     </div>
     <div id="skills-list" class="mt-3 flex flex-wrap gap-2"></div>
   </div>
-  <script>
-// === WORK MANAGEMENT (FULL WORKING V2) ===
-async function renderWorkList(){
-  const box=document.getElementById('work-list'); if(!box) return;
-  box.innerHTML='<div class="text-xs text-slate-400">Loading...</div>';
-  const { data, error } = await supabase.from('works').select('*').eq('user_id',1).order('id',{ascending:false});
-  if(error){ box.innerHTML='<div class="text-red-400 text-xs">โหลดข้อมูลล้มเหลว</div>'; return; }
-  if(!data || !data.length){ box.innerHTML='<div class="text-slate-500 text-sm">ยังไม่มีผลงาน</div>'; return; }
-  box.innerHTML='';
-  data.forEach(item=>{
-    const el=document.createElement('div'); el.className='p-3 bg-slate-800 rounded flex justify-between items-center';
-    el.innerHTML=`<div><div class='font-semibold text-slate-100'>${escapeHtml(item.title)}</div><div class='text-xs text-slate-400 break-all'>${escapeHtml(item.media_url||'')}</div></div><button class='del-work px-2 py-1 text-xs bg-rose-600 rounded'>ลบ</button>`;
-    box.appendChild(el);
-    el.querySelector('.del-work').onclick=async()=>{ await supabase.from('works').delete().eq('id',item.id); renderWorkList(); };
-  });
-}
-async function saveWork(){
-  const title=document.getElementById('work-title').value.trim();
-  const link=document.getElementById('work-link').value.trim();
-  const file=document.getElementById('work-file').files[0];
-  if(!title){ alert('กรุณาใส่ชื่อผลงาน'); return; }
-  let mediaUrl='';
-  if(link) mediaUrl=link;
-  if(file) mediaUrl=await uploadFile('work-media',file);
-  const { error } = await supabase.from('works').insert({title,media_url:mediaUrl,user_id:1});
-  if(error){ alert('บันทึกผลงานล้มเหลว'); return; }
-  document.getElementById('work-title').value='';
-  document.getElementById('work-link').value='';
-  document.getElementById('work-file').value='';
-  const p=document.createElement('div'); p.className='fixed top-5 right-5 bg-emerald-500 text-black px-4 py-2 rounded shadow-xl'; p.innerText='บันทึกสำเร็จ!'; document.body.appendChild(p); setTimeout(()=>p.remove(),2000);
-  renderWorkList();
-}
-document.getElementById('save-work-btn')?.addEventListener('click', saveWork);
-renderWorkList();
-</script>
-</body>
-</html>
+
+  
 
 <script>
 // Constants
@@ -708,3 +657,53 @@ adminBtn.onclick = () => {
   viewerBtn.classList.remove('bg-slate-100','text-slate-900');
 };
 </script>
+
+<script>
+// === Load profile data into viewer ===
+async function loadProfile() {
+  if(!supabase) return;
+  try{
+    const { data, error } = await supabase.from('profile').select('*').eq('id', 1).single();
+    if (error || !data) return;
+    if (data.banner_url) document.getElementById('hero-banner').style.backgroundImage = `url(${data.banner_url})`;
+    if (data.avatar_url) {
+      const img = document.getElementById('profile-avatar-img');
+      img.style.display = 'block';
+      img.src = data.avatar_url;
+      img.classList.remove('hidden');
+      document.getElementById('profile-avatar-fallback').classList.add('hidden');
+    }
+    document.getElementById('hero-title').textContent = data.name || '';
+    document.getElementById('hero-tagline').textContent = data.bio || '';
+    document.getElementById('facebook-link').href = data.facebook || '#';
+  }catch(e){ console.warn('loadProfile failed', e); }
+}
+loadProfile();
+</script>
+
+ <script>
+// === VIEWER TAB SWITCH ===
+const btnBio = document.getElementById('nav-1');
+const btnWork = document.getElementById('nav-work');
+const btnFav = document.getElementById('nav-favorites');
+
+const secBio = document.getElementById('personal-bio-view');
+const secWork = document.getElementById('work-section');
+const secFav = document.getElementById('favorites-section');
+
+function activate(btn){
+  [btnBio,btnWork,btnFav].forEach(b=>b.classList.remove('text-slate-50','border-sky-400'));
+  btn.classList.add('text-slate-50','border-sky-400');
+}
+function showSection(target){
+  secBio.classList.add('hidden');
+  secWork.classList.add('hidden');
+  secFav.classList.add('hidden');
+  target.classList.remove('hidden');
+}
+btnBio.onclick = ()=>{ activate(btnBio); showSection(secBio); loadViewerBio(); };
+btnWork.onclick = ()=>{ activate(btnWork); showSection(secWork); };
+btnFav.onclick = ()=>{ activate(btnFav); showSection(secFav); };
+</script>
+</body>
+</html>
