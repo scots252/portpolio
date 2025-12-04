@@ -16,3 +16,664 @@
     .skill-chip{display:inline-flex;gap:8px;align-items:center;padding:6px 10px;border-radius:999px;background:#111827;color:#fff}
   </style>
 </head>
+<body class="app">
+  <div id="app" class="max-w-6xl mx-auto p-6">
+    <header class="flex items-center justify-between mb-6">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-full bg-sky-400 flex items-center justify-center text-slate-900 font-bold">CP</div>
+        <div>
+          <div class="text-lg font-semibold">Creative Portfolio</div>
+          <div class="text-xs text-slate-400">Viewer / Admin dashboard</div>
+        </div>
+      </div>
+      <div class="flex items-center gap-2">
+        <button id="viewerModeBtn" class="px-3 py-1 rounded bg-slate-100 text-slate-900">Portfolio</button>
+        <button id="adminModeBtn" class="px-3 py-1 rounded bg-slate-900 border border-slate-700">Dashboard</button>
+      </div>
+    </header>
+
+    <main>
+      <!-- VIEWER -->
+      <section id="viewer-section" class="card">
+        <div id="hero" class="rounded-lg overflow-hidden mb-4" style="background:linear-gradient(90deg,#06b6d4,#7c3aed);height:180px"></div>
+        <div class="flex gap-6 items-center -mt-14">
+          <div class="w-28 h-28 rounded-full bg-slate-800 border-4 border-slate-900 overflow-hidden flex items-center justify-center" id="avatar-wrap">🎨<img id="profile-avatar-img" class="w-full h-full object-cover hidden" alt="avatar"></div>
+          <div class="flex-1">
+            <h1 id="hero-title" class="text-2xl font-semibold">ชื่อศิลปิน</h1>
+            <p id="hero-tagline" class="text-sm text-slate-300">รายละเอียดย่อ</p>
+            <div class="mt-3 flex gap-3 items-center"><a id="facebook-link" class="px-3 py-1 rounded bg-slate-900 text-xs" href="#" target="_blank">Facebook</a><span id="work-overview-text" class="text-xs text-slate-400">Portfolio รวมงาน</span></div>
+          </div>
+        </div>
+
+        <nav class="mt-6 border-t border-slate-700 pt-4 flex gap-4 text-sm">
+          <button id="nav-bio" class="py-2 px-3 rounded bg-slate-800">ประวัติส่วนตัว</button>
+          <button id="nav-work" class="py-2 px-3 rounded bg-transparent">ผลงาน</button>
+          <button id="nav-fav" class="py-2 px-3 rounded bg-transparent">ความชื่นชอบ</button>
+        </nav>
+
+        <section id="viewer-content" class="mt-4">
+          <div id="personal-bio-view" class="hidden card">
+            <h2 class="font-semibold mb-2">ประวัติส่วนตัว</h2>
+            <div id="pb-content" class="text-sm text-slate-300"></div>
+
+<!-- 🌟 Education Realtime Viewer -->
+<div id="education-viewer" class="mt-4"></div>
+
+<!-- 🌟 Experience Realtime Viewer -->
+<div id="experience-viewer" class="mt-4"></div>
+          </div>
+
+          <div id="work-section" class="card hidden">
+            <div class="flex justify-between items-center mb-3">
+              <h2 class="font-semibold">Selected Works</h2><small id="work-stats" class="text-slate-400">0 ชิ้น</small>
+            </div>
+            <div id="work-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3"></div>
+          </div>
+
+          <div id="favorites-section" class="card hidden">
+            <h2 class="font-semibold mb-2">Favorites</h2>
+            <div id="favorites-list" class="grid gap-2"></div>
+          </div>
+        </section>
+      </section>
+
+      <!-- ADMIN -->
+      <section id="admin-section" class="card hidden mt-6">
+        <div class="flex gap-3 mb-4">
+          <button id="menu-profile-settings" class="px-4 py-2 rounded bg-slate-800">1. ตั้งค่าหน้าโปรไฟล์</button>
+          <button id="menu-personal-bio" class="px-4 py-2 rounded bg-slate-800">2. ประวัติส่วนบุคคล</button>
+          <button id="menu-work-manage" class="px-4 py-2 rounded bg-slate-800">3. จัดการผลงาน</button>
+          <button id="menu-favorites" class="px-4 py-2 rounded bg-slate-800">4. ความชื่นชอบ</button>
+        </div>
+
+        <div id="section-profile" class="mb-4">
+          <h3 class="font-semibold mb-2">ตั้งค่าหน้าโปรไฟล์</h3>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <input id="artist-name" placeholder="ชื่อศิลปิน" class="px-3 py-2 rounded bg-slate-900" />
+            <input id="artist-facebook" placeholder="ลิงก์ Facebook" class="px-3 py-2 rounded bg-slate-900" />
+            <textarea id="artist-bio" placeholder="รายละเอียดใต้ชื่อ" class="col-span-1 md:col-span-2 px-3 py-2 rounded bg-slate-900"></textarea>
+            <input id="banner-upload" type="file" accept="image/*" />
+            <input id="avatar-upload" type="file" accept="image/*" />
+            <button id="save-profile-btn" class="col-span-1 md:col-span-2 px-4 py-2 bg-emerald-400 text-black rounded">บันทึกข้อมูล</button>
+          </div>
+        </div>
+
+        <div id="section-bio" class="hidden mb-4">
+  <!-- ===== Personal Bio Tab (ADMIN) ===== -->
+<div id="personal-bio-admin" class="mt-6 bg-slate-800 p-4 rounded-xl border border-slate-700 shadow-lg">
+  <h2 class="text-lg font-semibold mb-3">ประวัติส่วนตัว (Personal Bio)</h2>
+
+  <!-- Personal Information -->
+  <div class="bg-slate-900 p-4 rounded mb-4">
+    <h3 class="font-semibold mb-2">1. ข้อมูลส่วนบุคคล (Personal Information)</h3>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+      <input id="pi_fullname" placeholder="ชื่อ-นามสกุล" class="px-3 py-2 rounded bg-slate-800 border border-slate-700" />
+      <input id="pi_dob" type="date" placeholder="วันเดือนปีเกิด" class="px-3 py-2 rounded bg-slate-800 border border-slate-700" />
+      <input id="pi_address" placeholder="ที่อยู่ปัจจุบัน" class="col-span-1 md:col-span-2 px-3 py-2 rounded bg-slate-800 border border-slate-700" />
+      <input id="pi_phone" placeholder="เบอร์โทรศัพท์" class="px-3 py-2 rounded bg-slate-800 border border-slate-700" />
+      <input id="pi_email" type="email" placeholder="อีเมล" class="px-3 py-2 rounded bg-slate-800 border border-slate-700" />
+      <input id="pi_status" placeholder="สถานภาพ (เช่น โสด/สมรส)" class="px-3 py-2 rounded bg-slate-800 border border-slate-700" />
+      <input id="pi_nationality" placeholder="สัญชาติ/ศาสนา" class="px-3 py-2 rounded bg-slate-800 border border-slate-700" />
+    </div>
+    <div class="pt-3"><button id="save-personal-info" class="px-4 py-2 bg-emerald-400 text-black rounded font-semibold">บันทึกข้อมูลส่วนบุคคล</button></div>
+  </div>
+
+  <!-- Education Modal -->
+<div id="edu-modal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
+  <div class="bg-slate-800 w-full max-w-md p-6 rounded-xl border border-slate-700 shadow-xl">
+    <h3 id="edu-modal-title" class="text-lg font-semibold mb-4">เพิ่มการศึกษา</h3>
+    <div class="space-y-3">
+      <input id="edu-level" placeholder="ระดับการศึกษา" class="w-full px-3 py-2 rounded bg-slate-900 border border-slate-700" />
+      <input id="edu-inst" placeholder="สถาบัน" class="w-full px-3 py-2 rounded bg-slate-900 border border-slate-700" />
+      <input id="edu-major" placeholder="สาขา" class="w-full px-3 py-2 rounded bg-slate-900 border border-slate-700" />
+      <input id="edu-year" placeholder="ปีที่จบ" class="w-full px-3 py-2 rounded bg-slate-900 border border-slate-700" />
+      <input id="edu-gpa" placeholder="GPA" class="w-full px-3 py-2 rounded bg-slate-900 border border-slate-700" />
+    </div>
+    <div class="flex justify-end gap-2 mt-5">
+      <button id="edu-cancel" class="px-4 py-2 bg-slate-700 rounded">ยกเลิก</button>
+      <button id="edu-save" class="px-4 py-2 bg-emerald-400 text-black rounded font-semibold">บันทึก</button>
+    </div>
+  </div>
+</div>
+
+  <div class="bg-slate-900 p-4 rounded mb-4">
+    <h3 class="font-semibold mb-2">2.ประวัติการศึกษา</h3>
+    <p class="text-xs text-slate-400 mb-2">เพิ่ม / แก้ไข / ลบ รายการการศึกษา</p>
+    <div class="flex gap-2 mb-3">
+      <button id="add-education-btn" class="px-3 py-1 bg-sky-500 rounded text-black text-sm">+ เพิ่มการศึกษา</button>
+      <button id="clear-education-btn" class="px-3 py-1 bg-rose-600 rounded text-white text-sm">ลบทั้งหมด</button>
+    </div>
+    <div id="education-list" class="space-y-2"></div>
+  </div>
+
+  <!-- Experience Modal -->
+<div id="exp-modal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
+  <div class="bg-slate-800 w-full max-w-md p-6 rounded-xl border border-slate-700 shadow-xl">
+    <h3 id="exp-modal-title" class="text-lg font-semibold mb-4">เพิ่มประสบการณ์</h3>
+    <div class="space-y-3">
+      <input id="exp-company" placeholder="ชื่อบริษัท/องค์กร" class="w-full px-3 py-2 rounded bg-slate-900 border border-slate-700" />
+      <input id="exp-position" placeholder="ตำแหน่งงาน" class="w-full px-3 py-2 rounded bg-slate-900 border border-slate-700" />
+      <input id="exp-period" placeholder="ช่วงเวลา (เช่น 2020-2023)" class="w-full px-3 py-2 rounded bg-slate-900 border border-slate-700" />
+      <textarea id="exp-resp" placeholder="หน้าที่และความรับผิดชอบ" class="w-full px-3 py-2 rounded bg-slate-900 border border-slate-700"></textarea>
+    </div>
+    <div class="flex justify-end gap-2 mt-5">
+      <button id="exp-cancel" class="px-4 py-2 bg-slate-700 rounded">ยกเลิก</button>
+      <button id="exp-save" class="px-3 py-1 rounded bg-emerald-400 text-black font-semibold">บันทึก</button>
+    </div>
+  </div>
+</div>
+
+  <div class="bg-slate-900 p-4 rounded mb-4">
+    <h3 class="font-semibold mb-2">3. ประวัติการทำงานและประสบการณ์</h3>
+    <p class="text-xs text-slate-400 mb-2">เพิ่ม / แก้ไข / ลบ รายการประสบการณ์</p>
+    <div class="flex gap-2 mb-3">
+      <button id="add-experience-btn" class="px-3 py-1 bg-sky-500 rounded text-black text-sm">+ เพิ่มประสบการณ์</button>
+      <button id="clear-experience-btn" class="px-3 py-1 bg-rose-600 rounded text-white text-sm">ลบทั้งหมด</button>
+    </div>
+    <div id="experience-list-admin" class="space-y-2"></div>
+  </div>
+
+  <div class="bg-slate-900 p-4 rounded mb-4">
+    <h3 class="font-semibold mb-2">4. ทักษะและความสามารถ</h3>
+    <p class="text-xs text-slate-400 mb-2">เพิ่ม / แก้ไข / ลบ ทักษะ</p>
+    <div class="flex gap-2 mb-3">
+      <input id="skill-input" placeholder="พิมพ์ทักษะ แล้วกด Enter" class="px-3 py-2 rounded bg-slate-800 border border-slate-700 flex-1" />
+      <button id="add-skill-btn" class="px-3 py-2 bg-sky-500 rounded text-black">เพิ่ม</button>
+    </div>
+    <div id="skills-list" class="mt-3 flex flex-wrap gap-2"></div>
+  </div>
+</div>
+</div>
+
+
+
+        
+
+        <div id="section-works" class="hidden mb-4">
+          <h3 class="font-semibold mb-2">ผลงาน</h3>
+          <div class="flex gap-2 mb-3">
+            <button id="add-work-btn" class="px-3 py-1 bg-sky-500 rounded text-black">+ เพิ่มผลงาน</button>
+            <button id="clear-work-btn" class="px-3 py-1 bg-rose-600 rounded text-white">ลบทั้งหมด</button>
+          </div>
+          <div id="work-list" class="space-y-2"></div>
+        </div>
+
+        <div id="section-favs" class="hidden mb-4">
+          <h3 class="font-semibold mb-2">ความชื่นชอบ</h3>
+          <div class="flex gap-2 mb-3">
+            <button id="add-fav-btn" class="px-3 py-1 bg-sky-500 rounded text-black">+ เพิ่มความชื่นชอบ</button>
+            <button id="clear-fav-btn" class="px-3 py-1 bg-rose-600 rounded text-white">ลบทั้งหมด</button>
+          </div>
+          <div id="favorites-list-admin" class="space-y-2"></div>
+        </div>
+      </section>
+    </main>
+
+    <!-- Modals (simple, re-used) -->
+    <div id="modal-root" class="hidden fixed inset-0 z-50 items-center justify-center bg-black/50 p-4">
+      <div id="modal-card" class="bg-slate-800 rounded p-4 w-full max-w-md"></div>
+    </div>
+
+    <div id="popup-area"></div>
+  </div>
+
+<script>
+// ----------------- CONFIG -----------------
+const SUPABASE_URL = 'https://yrivvckaeqhfcjuputem.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlyaXZ2Y2thZXFoZmNqdXB1dGVtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ0MjYzNjksImV4cCI6MjA4MDAwMjM2OX0.Hw7rtrJyXS6sClytRKSYutvW7Co5l_jmbOUOduo30u0';
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { persistSession: false } });
+const USER_ID = 1;
+
+// ----------------- UTIL -------------------
+function el(id){ return document.getElementById(id); }
+function showPopup(text){ const p = document.createElement('div'); p.className='popup'; p.innerText=text; document.body.appendChild(p); setTimeout(()=>p.remove(),2000); }
+function showModal(html){ el('modal-card').innerHTML = html; el('modal-root').classList.remove('hidden'); }
+function closeModal(){ el('modal-root').classList.add('hidden'); el('modal-card').innerHTML = ''; }
+
+// ----------------- NAV --------------------
+el('viewerModeBtn').onclick = ()=>{ el('viewer-section').classList.remove('hidden'); el('admin-section').classList.add('hidden'); };
+el('adminModeBtn').onclick = ()=>{ el('viewer-section').classList.add('hidden'); el('admin-section').classList.remove('hidden'); };
+
+// Dashboard section menu
+el('menu-profile-settings').onclick = ()=>{ showAdminSection('section-profile'); };
+el('menu-personal-bio').onclick = ()=>{
+  showAdminSection('section-bio');
+  loadExperienceAdmin();
+  loadEducationAdmin();
+  loadSkillsAdmin();
+};
+el('menu-work-manage').onclick = ()=>{ showAdminSection('section-works'); };
+el('menu-favorites').onclick = ()=>{ showAdminSection('section-favs'); };
+function showAdminSection(id){ ['section-profile','section-bio','section-works','section-favs'].forEach(s=> el(s).classList.add('hidden')); el(id).classList.remove('hidden'); }
+
+// Viewer nav
+el('nav-bio').onclick = async ()=>{ setActiveViewer('personal-bio-view'); await loadViewerBio(); };
+el('nav-work').onclick = ()=>{ setActiveViewer('work-section'); loadWorksViewer(); };
+el('nav-fav').onclick = ()=>{ setActiveViewer('favorites-section'); loadFavoritesViewer(); };
+function setActiveViewer(id){ ['personal-bio-view','work-section','favorites-section'].forEach(s=> el(s).classList.add('hidden')); el(id).classList.remove('hidden'); }
+
+// ----------------- SIMPLE CRUD HELPERS ----------------
+async function fetchTable(table){ try{ const { data, error } = await supabase.from(table).select('*').eq('user_id', USER_ID).order('id', { ascending: false }); if(error) throw error; return data||[]; }catch(e){ console.warn(e); return []; } }
+async function insertTable(table, record){ try{ const { data, error } = await supabase.from(table).insert([{ ...record, user_id: USER_ID }]).select(); if(error) throw error; return data?.[0]||null; }catch(e){ console.warn(e); return null; } }
+async function updateTable(table, id, changes){ try{ const { data, error } = await supabase.from(table).update(changes).eq('id', id).eq('user_id', USER_ID).select(); if(error) throw error; return data?.[0]||null; }catch(e){ console.warn(e); return null; } }
+async function deleteTable(table, id){ try{ const { error } = await supabase.from(table).delete().eq('id', id).eq('user_id', USER_ID); if(error) throw error; return true; }catch(e){ console.warn(e); return false; } }
+async function deleteAll(table){ try{ const { error } = await supabase.from(table).delete().eq('user_id', USER_ID); if(error) throw error; return true; }catch(e){ console.warn(e); return false; } }
+
+// ----------------- PROFILE -----------------
+async function loadProfile(){ try{ const { data } = await supabase.from('profile').select('*').eq('id',1).single(); if(!data) return; if(data.banner_url) el('hero').style.backgroundImage = `url(${data.banner_url})`; if(data.avatar_url){ const img = el('profile-avatar-img'); img.src = data.avatar_url; img.classList.remove('hidden'); el('avatar-wrap').querySelector('svg')?.remove(); } el('hero-title').textContent = data.name||''; el('hero-tagline').textContent = data.bio||''; el('facebook-link').href = data.facebook||'#'; }catch(e){ console.warn('loadProfile',e); } }
+
+el('save-profile-btn').onclick = async ()=>{
+  const name = el('artist-name').value.trim(); const bio = el('artist-bio').value.trim(); const facebook = el('artist-facebook').value.trim();
+  // simple file upload helpers
+  const bannerFile = el('banner-upload')?.files?.[0]||null; const avatarFile = el('avatar-upload')?.files?.[0]||null;
+  async function uploadFile(bucket, file){ if(!file) return null; const path = `${Date.now()}-${file.name}`; const res = await supabase.storage.from(bucket).upload(path, file); if(res.error) { console.warn(res.error); return null; } const url = await supabase.storage.from(bucket).getPublicUrl(path); return url?.data?.publicUrl||null; }
+  let bannerUrl = null; let avatarUrl = null;
+  if(bannerFile) bannerUrl = await uploadFile('profile-data', bannerFile);
+  if(avatarFile) avatarUrl = await uploadFile('profile-data', avatarFile);
+  const payload = { id:1, name, bio, facebook, banner_url: bannerUrl, avatar_url: avatarUrl };
+  try{ const { error } = await supabase.from('profile').upsert(payload); if(error) throw error; showPopup('บันทึกโปรไฟล์เรียบร้อย'); await loadProfile(); }catch(e){ alert('บันทึกไม่สำเร็จ'); console.error(e); }
+};
+
+// ----------------- PERSONAL BIO
+
+// ===== SKILLS CRUD =====
+el('add-skill-btn').onclick = async ()=>{
+  const s = el('skill-input').value.trim(); if(!s) return;
+  await insertTable('skills',{ skill:s });
+  el('skill-input').value='';
+  loadSkillsAdmin(); loadViewerBio(); showPopup('เพิ่มทักษะแล้ว');
+};
+
+el('skill-input').onkeydown = async (e)=>{
+  if(e.key==='Enter'){
+    const s = el('skill-input').value.trim(); if(!s) return;
+    await insertTable('skills',{ skill:s });
+    el('skill-input').value='';
+    loadSkillsAdmin(); loadViewerBio(); showPopup('เพิ่มทักษะแล้ว');
+  }
+};
+
+async function loadSkillsAdmin(){
+  const list = await fetchTable('skills');
+  const box = el('skills-list'); box.innerHTML='';
+  list.forEach(s=>{
+    const tag = document.createElement('div');
+    tag.className='skill-chip';
+    tag.innerHTML = `${s.skill} <button data-id='${s.id}' class='del-skill text-rose-400 text-xs'>✕</button>`;
+    box.appendChild(tag);
+  });
+  document.querySelectorAll('.del-skill').forEach(btn=>{
+    btn.onclick = async ()=>{ await deleteTable('skills', btn.getAttribute('data-id')); loadSkillsAdmin(); loadViewerBio(); showPopup('ลบทักษะแล้ว'); };
+  });
+}
+
+// ===== EDUCATION CRUD =====
+// (unchanged)
+
+// ===== EXPERIENCE CRUD =====
+const expModal = {
+  open(isEdit=false, current=null){
+    el('exp-modal-title').textContent = isEdit ? 'แก้ไขประสบการณ์' : 'เพิ่มประสบการณ์';
+    el('exp-company').value = current?.company || '';
+    el('exp-position').value = current?.position || '';
+    el('exp-period').value = current?.period || '';
+    el('exp-resp').value = current?.responsibility || '';
+    el('exp-save').setAttribute('data-edit-id', current?.id || '');
+    el('exp-modal').classList.remove('hidden');
+  },
+  close(){ el('exp-modal').classList.add('hidden'); }
+};
+
+el('add-experience-btn').onclick = ()=> expModal.open();
+el('exp-cancel').onclick = ()=> expModal.close();
+
+el('exp-save').onclick = async ()=>{
+  const id = el('exp-save').getAttribute('data-edit-id');
+  const payload = {
+    company: el('exp-company').value.trim(),
+    position: el('exp-position').value.trim(),
+    period: el('exp-period').value.trim(),
+    responsibility: el('exp-resp').value.trim(),
+  };
+  if(id){ await updateTable('experience', id, payload); }
+  else{ await insertTable('experience', payload); }
+  expModal.close(); loadExperienceAdmin(); showPopup('บันทึกประสบการณ์แล้ว');
+};
+
+async function loadExperienceAdmin(){
+  const list = await fetchTable('experience');
+  const box = el('experience-list-admin'); box.innerHTML='';
+  list.forEach(e=>{
+    const row = document.createElement('div');
+    row.className='p-3 bg-slate-800 rounded border border-slate-700 flex justify-between';
+    row.innerHTML = `
+      <div>
+        <div class='font-semibold text-sky-300'>${e.company}</div>
+        <div class='text-xs text-slate-300'>ตำแหน่ง: ${e.position}</div>
+        <div class='text-xs text-slate-400'>ช่วงเวลา: ${e.period}</div>
+        <div class='text-xs text-slate-500'>${e.responsibility}</div>
+      </div>
+      <div class='flex gap-2'>
+        <button class='exp-edit px-3 py-1 bg-sky-600 text-white rounded' data-id='${e.id}'>แก้ไข</button>
+        <button class='exp-del px-3 py-1 bg-rose-600 text-white rounded' data-id='${e.id}'>ลบ</button>
+      </div>`;
+    box.appendChild(row);
+  });
+  document.querySelectorAll('.exp-edit').forEach(btn=>{
+    btn.onclick = async ()=>{
+      const listLocal = await fetchTable('experience');
+      const current = listLocal.find(x=>x.id == btn.getAttribute('data-id'));
+      expModal.open(true, current);
+    };
+  });
+  document.querySelectorAll('.exp-del').forEach(btn=>{
+    btn.onclick = async ()=>{ await deleteTable('experience', btn.getAttribute('data-id')); loadExperienceAdmin(); showPopup('ลบแล้ว'); };
+  });
+}
+
+el('clear-experience-btn').onclick = async ()=>{
+  if(!confirm('ลบประสบการณ์ทั้งหมด?')) return;
+  await deleteAll('experience'); loadExperienceAdmin(); showPopup('ลบทั้งหมดแล้ว');
+};
+const eduModal = {
+  open(isEdit=false, current=null){
+    el('edu-modal-title').textContent = isEdit ? 'แก้ไขการศึกษา' : 'เพิ่มการศึกษา';
+    el('edu-level').value = current?.level || '';
+    el('edu-inst').value = current?.institution || '';
+    el('edu-major').value = current?.major || '';
+    el('edu-year').value = current?.year || '';
+    el('edu-gpa').value = current?.gpa || '';
+    el('edu-save').setAttribute('data-edit-id', current?.id || '');
+    el('edu-modal').classList.remove('hidden');
+  },
+  close(){ el('edu-modal').classList.add('hidden'); }
+};
+
+el('add-education-btn').onclick = ()=> eduModal.open();
+el('edu-cancel').onclick = ()=> eduModal.close();
+
+el('edu-save').onclick = async ()=>{
+  const id = el('edu-save').getAttribute('data-edit-id');
+  const payload = {
+    level: el('edu-level').value.trim(),
+    institution: el('edu-inst').value.trim(),
+    major: el('edu-major').value.trim(),
+    year: el('edu-year').value.trim(),
+    gpa: el('edu-gpa').value.trim()
+  };
+  if(id){ await updateTable('education', id, payload); }
+  else{ await insertTable('education', payload); }
+  eduModal.close(); loadEducationAdmin();
+  loadEducationAdmin(); loadViewerBio(); showPopup('บันทึกข้อมูลแล้ว');
+};
+
+async function loadEducationAdmin(){
+  const list = await fetchTable('education');
+  const box = el('education-list'); box.innerHTML='';
+  list.forEach(e=>{
+    const row = document.createElement('div');
+    row.className='p-3 bg-slate-800 rounded border border-slate-700 flex justify-between';
+    row.innerHTML = `
+      <div>
+        <div class='font-semibold text-sky-300'>${e.level}</div>
+        <div class='text-xs text-slate-300'>${e.institution} — ${e.major}</div>
+        <div class='text-xs text-slate-400'>ปีที่จบ: ${e.year} | GPA: ${e.gpa}</div>
+      </div>
+      <div class='flex gap-2'>
+        <button class='edu-edit px-3 py-1 bg-sky-600 text-white rounded' data-id='${e.id}'>แก้ไข</button>
+        <button class='edu-del px-3 py-1 bg-rose-600 text-white rounded' data-id='${e.id}'>ลบ</button>
+      </div>`;
+    box.appendChild(row);
+  });
+  document.querySelectorAll('.edu-edit').forEach(btn=>{
+    btn.onclick = async ()=>{
+      const listLocal = await fetchTable('education');
+      const current = listLocal.find(x=>x.id == btn.getAttribute('data-id'));
+      eduModal.open(true, current);
+    };
+  });
+  document.querySelectorAll('.edu-del').forEach(btn=>{
+    btn.onclick = async ()=>{ await deleteTable('education', btn.getAttribute('data-id')); loadEducationAdmin(); showPopup('ลบแล้ว'); };
+  });
+}
+
+el('clear-education-btn').onclick = async ()=>{
+  if(!confirm('ลบประวัติการศึกษาทั้งหมด?')) return;
+  await deleteAll('education'); loadEducationAdmin(); showPopup('ลบทั้งหมดแล้ว');
+};
+ // ----------------- PERSONAL BIO (admin & viewer) -----------------
+const piFields = ['pi_fullname','pi_dob','pi_address','pi_phone','pi_email','pi_status','pi_nationality'];
+async function loadPersonalInfo(){ try{ const { data } = await supabase.from('personal_bio').select('*').eq('id',1).single(); if(data){ piFields.forEach(k=>{ if(el(k)) el(k).value = data[k] || ''; }); } }catch(e){ console.warn(e); }
+}
+
+el('save-personal-info').onclick = async ()=>{
+  const payload = { id:1 };
+  piFields.forEach(k=> payload[k] = el(k)?.value || '');
+  try{ const { error } = await supabase.from('personal_bio').upsert(payload); if(error) throw error; showPopup('บันทึกข้อมูลส่วนบุคคลเรียบร้อย'); await loadPersonalInfo(); }catch(e){ alert('บันทึกไม่สำเร็จ'); console.warn(e); }
+};
+
+async function loadViewerBio(){ try{
+  const { data } = await supabase.from('personal_bio').select('*').eq('id',1).single();
+  const [edu, exp, skills] = await Promise.all([ fetchTable('education'), fetchTable('experience'), fetchTable('skills') ]);
+  // realtime education output
+  const eduHtml = edu.length ? edu.map(e=>`
+      <div class='p-2 bg-slate-800 rounded mb-2 border border-slate-700'>
+        <div class='font-semibold text-sky-300'>${e.level}</div>
+        <div class='text-xs text-slate-300'>${e.institution} — ${e.major}</div>
+        <div class='text-xs text-slate-400'>ปีที่จบ: ${e.year} | GPA: ${e.gpa}</div>
+      </div>`).join('') : `<p class='text-slate-500'>ไม่มีข้อมูลการศึกษา</p>`;
+  el('education-viewer').innerHTML = `<h4 class='font-semibold mb-2'>ประวัติการศึกษา (Real-time)</h4>${eduHtml}`;
+
+  // realtime experience output
+  const expHtml = exp.length ? exp.map(x=>`
+      <div class='p-2 bg-slate-800 rounded mb-2 border border-slate-700'>
+        <div class='font-semibold text-emerald-300'>${x.company}</div>
+        <div class='text-xs text-slate-300'>ตำแหน่ง: ${x.position}</div>
+        <div class='text-xs text-slate-400'>ช่วงเวลา: ${x.period}</div>
+        <div class='text-xs text-slate-500'>${x.responsibility}</div>
+      </div>`).join('') : `<p class='text-slate-500'>ไม่มีข้อมูลประสบการณ์</p>`;
+  el('experience-viewer').innerHTML = `<h4 class='font-semibold mb-2'>ประวัติการทำงานและประสบการณ์ (Real-time)</h4>${expHtml}`;
+
+  const box = el('pb-content'); box.innerHTML = `\n    <div>\n      <p>ชื่อ: ${data?.pi_fullname||''}</p>\n      <p>วันเกิด: ${data?.pi_dob||''}</p>\n      <p>โทร: ${data?.pi_phone||''}</p>\n    </div>\n    <div class=\"mt-3\">\n      <h4 class=\"font-semibold\">การศึกษา</h4>\n      ${edu.length? edu.map(e=>`<p>- ${e.level} / ${e.institution} (${e.year})</p>`).join('') : '<p class=\\"text-slate-400\\">ไม่มีข้อมูล</p>'}\n    </div>\n    <div class=\"mt-3\">\n      <h4 class=\"font-semibold\">ทักษะ</h4>\n      ${skills.length? skills.map(s=>`<span class=\\"skill-chip mr-2\\">${s.skill}</span>`).join('') : '<p class=\\"text-slate-400\\">ไม่มีข้อมูล</p>'}\n    </div>\n  `;
+ }catch(e){ console.warn(e); }
+}
+
+// ----------------- WORKS & FAVS (viewer & admin) -----------------
+async function loadWorksViewer(){ const list = await fetchTable('works'); el('work-grid').innerHTML = '';
+  el('work-stats').textContent = `รวมผลงานทั้งหมด ${list.length} ชิ้น`;
+  list.forEach(w=>{ const card = document.createElement('div'); card.className='p-3 bg-slate-800 rounded'; card.innerHTML = `<div class="font-semibold">${w.title}</div>${w.file_url?`<img src="${w.file_url}" alt="${w.title}" class="mt-2 w-full max-h-40 object-cover rounded">`:''}${w.video_url?`<div class="mt-2 text-xs">Video: <a href="${w.video_url}" target="_blank">ลิงก์</a></div>`:''}`; el('work-grid').appendChild(card); }); }
+
+async function loadFavoritesViewer(){ const favs = await fetchTable('favorites'); el('favorites-list').innerHTML = ''; favs.forEach(f=>{ const r = document.createElement('div'); r.className = 'p-2 bg-slate-800 rounded'; r.innerHTML = `<div class="font-semibold">${f.title}</div><div class="text-xs">${f.description||''}</div>`; el('favorites-list').appendChild(r); }); }
+
+// ----------------- REALTIME SUBSCRIPTION -----------------
+
+// realtime: education
+supabase.channel('realtime-experience')
+  .on('postgres_changes', { event: '*', schema: 'public', table: 'experience' }, ()=>{
+    loadExperienceAdmin();
+    loadViewerBio();
+  })
+  .subscribe();
+
+// realtime: education
+supabase.channel('realtime-education')
+  .on('postgres_changes', { event: '*', schema: 'public', table: 'education' }, ()=>{
+    loadEducationAdmin();    // admin list
+    loadViewerBio();         // viewer bio auto update
+  })
+  .subscribe();
+
+// realtime: skills (ENABLED)
+supabase.channel('realtime-skills')
+  .on('postgres_changes', { event: '*', schema: 'public', table: 'skills' }, ()=>{
+    loadSkillsAdmin();
+    loadViewerBio();
+  })
+  .subscribe();
+// (ทำเฉพาะประวัติการศึกษา — Education realtime เท่านั้น)
+// subscribe to realtime changes for works & favorites
+supabase.channel('realtime-works')
+  .on('postgres_changes', { event: '*', schema: 'public', table: 'works' }, ()=>{
+    loadWorksAdmin();
+    loadWorksViewer();
+  })
+  .subscribe();
+
+supabase.channel('realtime-favs')
+  .on('postgres_changes', { event: '*', schema: 'public', table: 'favorites' }, ()=>{
+    loadFavoritesAdmin();
+    loadFavoritesViewer();
+  })
+  .subscribe();
+
+// ----------------- LOAD ADMIN WORK LIST -----------------
+async function loadWorksAdmin(){
+  const list = await fetchTable('works');
+  el('work-list').innerHTML = '';
+  list.forEach((w, i)=>{
+    const row = document.createElement('div');
+    const idx = i + 1; // use index from forEach to avoid redeclaration issues
+    row.className = 'p-3 bg-slate-800 rounded flex justify-between items-start gap-3 border border-slate-700';
+    row.innerHTML = `
+      <div>
+        <div class='font-semibold text-sky-300'>#${idx} — ${w.title}</div>
+        ${w.file_url ? `<img src='${w.file_url}' class='mt-1 w-20 h-14 object-cover rounded'>` : ''}
+        ${w.video_url ? `<div class='text-xs'>Video: <a href='${w.video_url}' target='_blank'>ลิงก์</a></div>` : ''}
+      </div>
+      <div class="flex items-start">
+        <button data-id='${w.id}' class='edit-work px-3 py-1 bg-sky-600 rounded text-white mr-2'>แก้ไข</button>
+        <button data-id='${w.id}' class='del-work px-3 py-1 bg-rose-600 rounded text-white'>ลบ</button>
+      </div>
+    `;
+    el('work-list').appendChild(row);
+  });
+
+  // attach handlers AFTER elements are in DOM
+  document.querySelectorAll('.edit-work').forEach(btn=>{
+    btn.onclick = ()=>{
+      const id = btn.getAttribute('data-id');
+      const w = (async()=>{ const listLocal = await fetchTable('works'); return listLocal.find(a=>a.id==id); })();
+      // fetch current record then show modal
+      w.then(current=>{
+        if(!current){ showPopup('ไม่พบรายการ'); return; }
+        showModal(`
+          <h3 class='font-semibold mb-2'>แก้ไขผลงาน</h3>
+          <input id='work-title' class='w-full px-3 py-2 rounded bg-slate-900 mb-2' value='${current.title}' />
+          <input id='work-url' class='w-full px-3 py-2 rounded bg-slate-900 mb-2' value='${current.video_url||''}' placeholder='ลิงก์วิดีโอ (ถ้ามี)' />
+          <div class='flex justify-end gap-2'><button onclick='closeModal()' class='px-3 py-1 rounded bg-slate-700'>ยกเลิก</button><button id='modal-work-edit' class='px-3 py-1 rounded bg-emerald-400'>บันทึก</button></div>
+        `);
+        document.getElementById('modal-work-edit').onclick = async ()=>{
+          await updateTable('works', id, { title: el('work-title').value, video_url: el('work-url').value });
+          showPopup('แก้ไขผลงานเรียบร้อย'); loadWorksAdmin(); loadWorksViewer();
+          closeModal();
+        };
+      });
+    };
+  });
+
+  // delete
+  document.querySelectorAll('.del-work').forEach(btn=>{
+    btn.onclick = async ()=>{
+      const id = btn.getAttribute('data-id');
+      await deleteTable('works', id);
+      showPopup('ลบผลงานแล้ว');
+      loadWorksAdmin(); loadWorksViewer();
+    };
+  });
+}
+
+// ----------------- LOAD ADMIN FAVORITES LIST -----------------
+async function loadFavoritesAdmin(){
+  const list = await fetchTable('favorites');
+  el('favorites-list-admin').innerHTML = '';
+  list.forEach((f, i)=>{
+    const row = document.createElement('div');
+    const idx = i + 1;
+    row.className = 'p-3 bg-slate-800 rounded flex justify-between items-start gap-3 border border-slate-700';
+    row.innerHTML = `
+      <div>
+        <div class='font-semibold text-sky-300'>#${idx} — ${f.title}</div>
+        <div class='text-xs'>${f.description || ''}</div>
+      </div>
+      <div class="flex items-start">
+        <button data-id='${f.id}' class='edit-fav px-3 py-1 bg-sky-600 rounded text-white mr-2'>แก้ไข</button>
+        <button data-id='${f.id}' class='del-fav px-3 py-1 bg-rose-600 rounded text-white'>ลบ</button>
+      </div>
+    `;
+    el('favorites-list-admin').appendChild(row);
+  });
+
+  // edit
+  document.querySelectorAll('.edit-fav').forEach(btn=>{
+    btn.onclick = ()=>{
+      const id = btn.getAttribute('data-id');
+      (async()=>{
+        const listLocal = await fetchTable('favorites');
+        const f = listLocal.find(a=>a.id==id);
+        if(!f){ showPopup('ไม่พบรายการ'); return; }
+        showModal(`
+          <h3 class='font-semibold mb-2'>แก้ไขความชื่นชอบ</h3>
+          <input id='fav-title' class='w-full px-3 py-2 rounded bg-slate-900 mb-2' value='${f.title}' />
+          <input id='fav-desc' class='w-full px-3 py-2 rounded bg-slate-900 mb-2' value='${f.description||''}' />
+          <div class='flex justify-end gap-2'><button onclick='closeModal()' class='px-3 py-1 rounded bg-slate-700'>ยกเลิก</button><button id='modal-fav-edit' class='px-3 py-1 rounded bg-emerald-400'>บันทึก</button></div>
+        `);
+        document.getElementById('modal-fav-edit').onclick = async ()=>{
+          await updateTable('favorites', id, { title: el('fav-title').value, description: el('fav-desc').value });
+          showPopup('แก้ไขความชื่นชอบเรียบร้อย'); loadFavoritesAdmin(); loadFavoritesViewer();
+          closeModal();
+        };
+      })();
+    };
+  });
+
+  // delete
+  document.querySelectorAll('.del-fav').forEach(btn=>{
+    btn.onclick = async ()=>{
+      const id = btn.getAttribute('data-id');
+      await deleteTable('favorites', id);
+      showPopup('ลบข้อมูลแล้ว');
+      loadFavoritesAdmin(); loadFavoritesViewer();
+    };
+  });
+}
+
+// Admin: add work modal
+el('add-work-btn').onclick = ()=>{
+  showModal(`
+    <h3 class='font-semibold mb-2'>เพิ่มผลงาน</h3>
+    <input id='work-title' class='w-full px-3 py-2 rounded bg-slate-900 mb-2' placeholder='ชื่อผลงาน' />
+    <input id='work-file' type='file' class='mb-2' accept='image/*,video/*' />
+    <input id='work-url' class='w-full px-3 py-2 rounded bg-slate-900 mb-2' placeholder='ลิงก์วิดีโอ (ถ้ามี)' />
+    <div class='flex justify-end gap-2'><button onclick='closeModal()' class='px-3 py-1 rounded bg-slate-700'>ยกเลิก</button><button id='modal-work-save' class='px-3 py-1 rounded bg-emerald-400'>บันทึก</button></div>
+  `);
+  document.getElementById('modal-card').querySelector('#modal-work-save').onclick = async ()=>{
+    const title = el('work-title').value.trim(); const file = el('work-file')?.files?.[0]||null; const url = el('work-url').value.trim()||null;
+    if(!title){ alert('กรุณากรอกชื่อผลงาน'); return; }
+    let fileUrl = null;
+    if(file){ const path = `work_${Date.now()}_${file.name}`; const res = await supabase.storage.from('work-files').upload(path, file); if(res.error){ alert('upload failed'); console.warn(res.error); } else { const pub = await supabase.storage.from('work-files').getPublicUrl(path); fileUrl = pub?.data?.publicUrl||null; } }
+    await insertTable('works', { title, file_url: fileUrl, video_url: url }); showPopup('เพิ่มผลงานเรียบร้อย'); closeModal(); loadWorksViewer(); }
+};
+
+el('add-fav-btn').onclick = ()=>{
+  showModal(`
+    <h3 class='font-semibold mb-2'>เพิ่มความชื่นชอบ</h3>
+    <input id='fav-title' class='w-full px-3 py-2 rounded bg-slate-900 mb-2' placeholder='ชื่อ' />
+    <input id='fav-desc' class='w-full px-3 py-2 rounded bg-slate-900 mb-2' placeholder='ลิงก์/คำอธิบาย' />
+    <div class='flex justify-end gap-2'><button onclick='closeModal()' class='px-3 py-1 rounded bg-slate-700'>ยกเลิก</button><button id='modal-fav-save' class='px-3 py-1 rounded bg-emerald-400'>บันทึก</button></div>
+  `);
+  document.getElementById('modal-card').querySelector('#modal-fav-save').onclick = async ()=>{
+    const title = el('fav-title').value.trim(); const desc = el('fav-desc').value.trim()||null; if(!title){ alert('กรุณากรอกชื่อ'); return; } await insertTable('favorites', { title, description: desc }); showPopup('เพิ่มความชื่นชอบเรียบร้อย'); closeModal(); loadFavoritesAdmin(); loadFavoritesViewer(); };
+};
+
+// clear handlers
+el('clear-work-btn').onclick = async ()=>{ if(!confirm('ลบผลงานทั้งหมด?')) return; await deleteAll('works'); showPopup('ลบผลงานทั้งหมด'); el('work-list').innerHTML=''; loadWorksViewer(); };
+el('clear-fav-btn').onclick = async ()=>{ if(!confirm('ลบความชื่นชอบทั้งหมด?')) return; await deleteAll('favorites'); showPopup('ลบความชื่นชอบทั้งหมด'); el('favorites-list-admin').innerHTML=''; loadFavoritesViewer(); };
+
+// initial load
+(async function init(){ await loadProfile(); await loadPersonalInfo(); await loadViewerBio(); loadWorksViewer(); loadFavoritesViewer(); // also populate admin lists initially
+  loadWorksAdmin(); loadFavoritesAdmin(); loadEducationAdmin();
+})();
+
+</script>
+</body>
+</html>
