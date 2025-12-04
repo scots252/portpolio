@@ -7,13 +7,88 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
-    :root{--bg:#0f1724;--card:#0b1220}
-    html,body{height:100%;margin:0;font-family:Inter, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial}
-    .app{min-height:100vh;background:linear-gradient(180deg,#071024 0%, #071020 60%);color:#e6eef8}
-    .card{background:var(--card);border:1px solid rgba(255,255,255,0.03);padding:1rem;border-radius:12px}
-    .hidden{display:none}
-    .popup{position:fixed;right:20px;top:20px;background:#10b981;color:#04201a;padding:8px 12px;border-radius:8px;z-index:60}
-    .skill-chip{display:inline-flex;gap:8px;align-items:center;padding:6px 10px;border-radius:999px;background:#111827;color:#fff}
+    /* ---------- Theme variables & base ---------- */
+    :root{
+      --bg-1: #071024; --bg-2: #0b1220; --glass: rgba(255,255,255,0.04);
+      --glass-2: rgba(255,255,255,0.025);
+      --muted: #cfe6ff;
+      --accent: #7c3aed;
+      --accent-2: #06b6d4;
+      --card-border: rgba(255,255,255,0.08);
+      --glass-shadow: 0 6px 30px rgba(2,6,23,0.6);
+      --txt: #e6eef8;
+      --glass-border-gradient: linear-gradient(135deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02));
+      --transition-fast: 220ms cubic-bezier(.2,.9,.3,1);
+    }
+
+    /* Dark mode variables (applied with body.dark) */
+    body{--bg-1: #061226; --bg-2:#071028}
+
+    html,body{height:100%;margin:0;font-family:Inter, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial; color:var(--txt); background: radial-gradient(1200px 600px at 10% 10%, rgba(124,58,237,0.08), transparent), linear-gradient(180deg,var(--bg-1), var(--bg-2)); transition:background var(--transition-fast), color var(--transition-fast)}
+
+    .app{min-height:100vh}
+
+    /* ---------- Glass card (WOW Version) ---------- */
+    .card{
+      background: linear-gradient(145deg, rgba(255,255,255,0.12), rgba(255,255,255,0.03));
+      border: 1px solid rgba(255,255,255,0.18);
+      border-radius: 20px;
+      padding: 1.2rem;
+      -webkit-backdrop-filter: blur(18px) saturate(180%);
+      backdrop-filter: blur(18px) saturate(180%);
+      box-shadow:
+        0 0 20px rgba(255,255,255,0.12),
+        0 8px 50px rgba(0,0,0,0.6);
+      transition: transform var(--transition-fast), box-shadow var(--transition-fast), background var(--transition-fast);
+    }
+
+    /* Slight lift on hover */
+    .card:hover{
+      transform: translateY(-10px) scale(1.02);
+      box-shadow:
+        0 0 30px rgba(255,255,255,0.18),
+        0 12px 60px rgba(0,0,0,0.75);
+      background: linear-gradient(145deg, rgba(255,255,255,0.18), rgba(255,255,255,0.05));
+    }
+    .card:hover{ transform: translateY(-6px); box-shadow: 0 12px 40px rgba(2,6,23,0.75) }
+
+    /* header avatar glass */
+    .avatar-glass{ width:112px; height:112px; border-radius:999px; display:flex; align-items:center; justify-content:center; overflow:hidden; border:1px solid rgba(255,255,255,0.06); background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01)); backdrop-filter: blur(6px); }
+
+    /* buttons */
+    .btn{ padding:8px 12px; border-radius:10px; border:1px solid rgba(255,255,255,0.04); background:linear-gradient(180deg, rgba(255,255,255,0.015), rgba(255,255,255,0.01)); cursor:pointer; transition:transform var(--transition-fast), box-shadow var(--transition-fast), background var(--transition-fast) }
+    .btn:active{ transform: translateY(1px) }
+    .btn-accent{ background: linear-gradient(90deg,var(--accent-2), var(--accent)); color:#041226; font-weight:600 }
+
+    /* nav pills */
+    .pill{ padding:8px 10px; border-radius:999px }
+
+    /* subtle glass chips */
+    .skill-chip{ display:inline-flex; gap:8px; align-items:center; padding:6px 10px; border-radius:999px; background: linear-gradient(90deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01)); border:1px solid rgba(255,255,255,0.03) }
+
+    /* popup */
+    .popup{ position:fixed; right:20px; top:20px; background:linear-gradient(180deg,#10b981,#047857); color:#032018; padding:10px 14px; border-radius:10px; z-index:60; box-shadow: 0 8px 30px rgba(2,6,23,0.6)}
+
+    /* modal backdrop enhanced */
+    #edu-modal, #exp-modal{ backdrop-filter: blur(6px) }
+
+    /* ---------- Animations ---------- */
+    .fade-in{ animation: fadeIn .36s ease forwards }
+    .fade-out{ animation: fadeOut .28s ease forwards }
+
+    @keyframes fadeIn{ from{ opacity:0; transform: translateY(6px) scale(.995) } to{ opacity:1; transform:none } }
+    @keyframes fadeOut{ from{ opacity:1; transform:none } to{ opacity:0; transform: translateY(6px) scale(.995) } }
+
+    /* loader shimmer */
+    .shimmer{ position:relative; overflow:hidden; background:linear-gradient(90deg, rgba(255,255,255,0.02), rgba(255,255,255,0.04), rgba(255,255,255,0.02)); }
+    .shimmer::after{ content:''; position:absolute; top:0; left:-120%; width:40%; height:100%; background:linear-gradient(90deg, transparent, rgba(255,255,255,0.05), transparent); animation:shimmer 1.2s linear infinite }
+    @keyframes shimmer{ to{ left:120% } }
+
+    /* smooth transitions for theme elements */
+    .smooth-transition *{ transition: color var(--transition-fast), background var(--transition-fast), border-color var(--transition-fast) }
+
+    /* small responsive tweaks */
+    @media (max-width:768px){ .grid-cols-3-sm{ grid-template-columns: repeat(2, minmax(0,1fr)) } }
   </style>
 </head>
 <body class="app">
@@ -677,3 +752,4 @@ el('clear-fav-btn').onclick = async ()=>{ if(!confirm('ลบความชื�
 </script>
 </body>
 </html>
+
