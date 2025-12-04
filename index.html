@@ -14,6 +14,20 @@
     .hidden{display:none}
     .popup{position:fixed;right:20px;top:20px;background:#10b981;color:#04201a;padding:8px 12px;border-radius:8px;z-index:60}
     .skill-chip{display:inline-flex;gap:8px;align-items:center;padding:6px 10px;border-radius:999px;background:#111827;color:#fff}
+
+    /* --- RESPONSIVE HERO & PROFILE --- */
+    @media(max-width:640px){
+      #hero{height:140px !important;}
+      #viewer-section .flex.gap-6{flex-direction:column;margin-top:-20px;}
+      #avatar-wrap{width:90px;height:90px;margin:auto;}
+      header{flex-direction:column;align-items:flex-start !important;gap:12px;}
+      nav button{flex:1;text-align:center;}
+    }
+
+    /* GRID RESPONSIVE (WORKS) */
+    @media(max-width:480px){
+      #work-grid{grid-template-columns:1fr !important;}
+    }
   </style>
 </head>
 <body class="app">
@@ -677,3 +691,4 @@ el('clear-fav-btn').onclick = async ()=>{ if(!confirm('ลบความชื�
 </script>
 </body>
 </html>
+
