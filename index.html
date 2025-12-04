@@ -55,6 +55,12 @@
           <div id="personal-bio-view" class="hidden card">
             <h2 class="font-semibold mb-2">ประวัติส่วนตัว</h2>
             <div id="pb-content" class="text-sm text-slate-300"></div>
+
+<!-- 🌟 Education Realtime Viewer -->
+<div id="education-viewer" class="mt-4"></div>
+
+<!-- 🌟 Experience Realtime Viewer -->
+<div id="experience-viewer" class="mt-4"></div>
           </div>
 
           <div id="work-section" class="card hidden">
@@ -93,7 +99,7 @@
         </div>
 
         <div id="section-bio" class="hidden mb-4">
-"+`  <!-- ===== Personal Bio Tab (ADMIN) ===== -->
+  <!-- ===== Personal Bio Tab (ADMIN) ===== -->
 <div id="personal-bio-admin" class="mt-6 bg-slate-800 p-4 rounded-xl border border-slate-700 shadow-lg">
   <h2 class="text-lg font-semibold mb-3">ประวัติส่วนตัว (Personal Bio)</h2>
 
@@ -131,7 +137,7 @@
 </div>
 
   <div class="bg-slate-900 p-4 rounded mb-4">
-    <h3 class="font-semibold mb-2">2. ประวัติการศึกษา</h3>
+    <h3 class="font-semibold mb-2">2.ประวัติการศึกษา</h3>
     <p class="text-xs text-slate-400 mb-2">เพิ่ม / แก้ไข / ลบ รายการการศึกษา</p>
     <div class="flex gap-2 mb-3">
       <button id="add-education-btn" class="px-3 py-1 bg-sky-500 rounded text-black text-sm">+ เพิ่มการศึกษา</button>
@@ -177,8 +183,7 @@
     <div id="skills-list" class="mt-3 flex flex-wrap gap-2"></div>
   </div>
 </div>
-</div>`}]}
-        </div>
+</div>
 
 
 
@@ -230,7 +235,12 @@ el('adminModeBtn').onclick = ()=>{ el('viewer-section').classList.add('hidden');
 
 // Dashboard section menu
 el('menu-profile-settings').onclick = ()=>{ showAdminSection('section-profile'); };
-el('menu-personal-bio').onclick = ()=>{ showAdminSection('section-bio'); };
+el('menu-personal-bio').onclick = ()=>{
+  showAdminSection('section-bio');
+  loadExperienceAdmin();
+  loadEducationAdmin();
+  loadSkillsAdmin();
+};
 el('menu-work-manage').onclick = ()=>{ showAdminSection('section-works'); };
 el('menu-favorites').onclick = ()=>{ showAdminSection('section-favs'); };
 function showAdminSection(id){ ['section-profile','section-bio','section-works','section-favs'].forEach(s=> el(s).classList.add('hidden')); el(id).classList.remove('hidden'); }
@@ -263,7 +273,174 @@ el('save-profile-btn').onclick = async ()=>{
   try{ const { error } = await supabase.from('profile').upsert(payload); if(error) throw error; showPopup('บันทึกโปรไฟล์เรียบร้อย'); await loadProfile(); }catch(e){ alert('บันทึกไม่สำเร็จ'); console.error(e); }
 };
 
-// ----------------- PERSONAL BIO (admin/viewer) -----------------
+// ----------------- PERSONAL BIO
+
+// ===== SKILLS CRUD =====
+el('add-skill-btn').onclick = async ()=>{
+  const s = el('skill-input').value.trim(); if(!s) return;
+  await insertTable('skills',{ skill:s });
+  el('skill-input').value='';
+  loadSkillsAdmin(); loadViewerBio(); showPopup('เพิ่มทักษะแล้ว');
+};
+
+el('skill-input').onkeydown = async (e)=>{
+  if(e.key==='Enter'){
+    const s = el('skill-input').value.trim(); if(!s) return;
+    await insertTable('skills',{ skill:s });
+    el('skill-input').value='';
+    loadSkillsAdmin(); loadViewerBio(); showPopup('เพิ่มทักษะแล้ว');
+  }
+};
+
+async function loadSkillsAdmin(){
+  const list = await fetchTable('skills');
+  const box = el('skills-list'); box.innerHTML='';
+  list.forEach(s=>{
+    const tag = document.createElement('div');
+    tag.className='skill-chip';
+    tag.innerHTML = `${s.skill} <button data-id='${s.id}' class='del-skill text-rose-400 text-xs'>✕</button>`;
+    box.appendChild(tag);
+  });
+  document.querySelectorAll('.del-skill').forEach(btn=>{
+    btn.onclick = async ()=>{ await deleteTable('skills', btn.getAttribute('data-id')); loadSkillsAdmin(); loadViewerBio(); showPopup('ลบทักษะแล้ว'); };
+  });
+}
+
+// ===== EDUCATION CRUD =====
+// (unchanged)
+
+// ===== EXPERIENCE CRUD =====
+const expModal = {
+  open(isEdit=false, current=null){
+    el('exp-modal-title').textContent = isEdit ? 'แก้ไขประสบการณ์' : 'เพิ่มประสบการณ์';
+    el('exp-company').value = current?.company || '';
+    el('exp-position').value = current?.position || '';
+    el('exp-period').value = current?.period || '';
+    el('exp-resp').value = current?.responsibility || '';
+    el('exp-save').setAttribute('data-edit-id', current?.id || '');
+    el('exp-modal').classList.remove('hidden');
+  },
+  close(){ el('exp-modal').classList.add('hidden'); }
+};
+
+el('add-experience-btn').onclick = ()=> expModal.open();
+el('exp-cancel').onclick = ()=> expModal.close();
+
+el('exp-save').onclick = async ()=>{
+  const id = el('exp-save').getAttribute('data-edit-id');
+  const payload = {
+    company: el('exp-company').value.trim(),
+    position: el('exp-position').value.trim(),
+    period: el('exp-period').value.trim(),
+    responsibility: el('exp-resp').value.trim(),
+  };
+  if(id){ await updateTable('experience', id, payload); }
+  else{ await insertTable('experience', payload); }
+  expModal.close(); loadExperienceAdmin(); showPopup('บันทึกประสบการณ์แล้ว');
+};
+
+async function loadExperienceAdmin(){
+  const list = await fetchTable('experience');
+  const box = el('experience-list-admin'); box.innerHTML='';
+  list.forEach(e=>{
+    const row = document.createElement('div');
+    row.className='p-3 bg-slate-800 rounded border border-slate-700 flex justify-between';
+    row.innerHTML = `
+      <div>
+        <div class='font-semibold text-sky-300'>${e.company}</div>
+        <div class='text-xs text-slate-300'>ตำแหน่ง: ${e.position}</div>
+        <div class='text-xs text-slate-400'>ช่วงเวลา: ${e.period}</div>
+        <div class='text-xs text-slate-500'>${e.responsibility}</div>
+      </div>
+      <div class='flex gap-2'>
+        <button class='exp-edit px-3 py-1 bg-sky-600 text-white rounded' data-id='${e.id}'>แก้ไข</button>
+        <button class='exp-del px-3 py-1 bg-rose-600 text-white rounded' data-id='${e.id}'>ลบ</button>
+      </div>`;
+    box.appendChild(row);
+  });
+  document.querySelectorAll('.exp-edit').forEach(btn=>{
+    btn.onclick = async ()=>{
+      const listLocal = await fetchTable('experience');
+      const current = listLocal.find(x=>x.id == btn.getAttribute('data-id'));
+      expModal.open(true, current);
+    };
+  });
+  document.querySelectorAll('.exp-del').forEach(btn=>{
+    btn.onclick = async ()=>{ await deleteTable('experience', btn.getAttribute('data-id')); loadExperienceAdmin(); showPopup('ลบแล้ว'); };
+  });
+}
+
+el('clear-experience-btn').onclick = async ()=>{
+  if(!confirm('ลบประสบการณ์ทั้งหมด?')) return;
+  await deleteAll('experience'); loadExperienceAdmin(); showPopup('ลบทั้งหมดแล้ว');
+};
+const eduModal = {
+  open(isEdit=false, current=null){
+    el('edu-modal-title').textContent = isEdit ? 'แก้ไขการศึกษา' : 'เพิ่มการศึกษา';
+    el('edu-level').value = current?.level || '';
+    el('edu-inst').value = current?.institution || '';
+    el('edu-major').value = current?.major || '';
+    el('edu-year').value = current?.year || '';
+    el('edu-gpa').value = current?.gpa || '';
+    el('edu-save').setAttribute('data-edit-id', current?.id || '');
+    el('edu-modal').classList.remove('hidden');
+  },
+  close(){ el('edu-modal').classList.add('hidden'); }
+};
+
+el('add-education-btn').onclick = ()=> eduModal.open();
+el('edu-cancel').onclick = ()=> eduModal.close();
+
+el('edu-save').onclick = async ()=>{
+  const id = el('edu-save').getAttribute('data-edit-id');
+  const payload = {
+    level: el('edu-level').value.trim(),
+    institution: el('edu-inst').value.trim(),
+    major: el('edu-major').value.trim(),
+    year: el('edu-year').value.trim(),
+    gpa: el('edu-gpa').value.trim()
+  };
+  if(id){ await updateTable('education', id, payload); }
+  else{ await insertTable('education', payload); }
+  eduModal.close(); loadEducationAdmin();
+  loadEducationAdmin(); loadViewerBio(); showPopup('บันทึกข้อมูลแล้ว');
+};
+
+async function loadEducationAdmin(){
+  const list = await fetchTable('education');
+  const box = el('education-list'); box.innerHTML='';
+  list.forEach(e=>{
+    const row = document.createElement('div');
+    row.className='p-3 bg-slate-800 rounded border border-slate-700 flex justify-between';
+    row.innerHTML = `
+      <div>
+        <div class='font-semibold text-sky-300'>${e.level}</div>
+        <div class='text-xs text-slate-300'>${e.institution} — ${e.major}</div>
+        <div class='text-xs text-slate-400'>ปีที่จบ: ${e.year} | GPA: ${e.gpa}</div>
+      </div>
+      <div class='flex gap-2'>
+        <button class='edu-edit px-3 py-1 bg-sky-600 text-white rounded' data-id='${e.id}'>แก้ไข</button>
+        <button class='edu-del px-3 py-1 bg-rose-600 text-white rounded' data-id='${e.id}'>ลบ</button>
+      </div>`;
+    box.appendChild(row);
+  });
+  document.querySelectorAll('.edu-edit').forEach(btn=>{
+    btn.onclick = async ()=>{
+      const listLocal = await fetchTable('education');
+      const current = listLocal.find(x=>x.id == btn.getAttribute('data-id'));
+      eduModal.open(true, current);
+    };
+  });
+  document.querySelectorAll('.edu-del').forEach(btn=>{
+    btn.onclick = async ()=>{ await deleteTable('education', btn.getAttribute('data-id')); loadEducationAdmin(); showPopup('ลบแล้ว'); };
+  });
+}
+
+el('clear-education-btn').onclick = async ()=>{
+  if(!confirm('ลบประวัติการศึกษาทั้งหมด?')) return;
+  await deleteAll('education'); loadEducationAdmin(); showPopup('ลบทั้งหมดแล้ว');
+};
+ // ----------------- PERSONAL BIO (admin & viewer) -----------------
 const piFields = ['pi_fullname','pi_dob','pi_address','pi_phone','pi_email','pi_status','pi_nationality'];
 async function loadPersonalInfo(){ try{ const { data } = await supabase.from('personal_bio').select('*').eq('id',1).single(); if(data){ piFields.forEach(k=>{ if(el(k)) el(k).value = data[k] || ''; }); } }catch(e){ console.warn(e); }
 }
@@ -277,6 +454,25 @@ el('save-personal-info').onclick = async ()=>{
 async function loadViewerBio(){ try{
   const { data } = await supabase.from('personal_bio').select('*').eq('id',1).single();
   const [edu, exp, skills] = await Promise.all([ fetchTable('education'), fetchTable('experience'), fetchTable('skills') ]);
+  // realtime education output
+  const eduHtml = edu.length ? edu.map(e=>`
+      <div class='p-2 bg-slate-800 rounded mb-2 border border-slate-700'>
+        <div class='font-semibold text-sky-300'>${e.level}</div>
+        <div class='text-xs text-slate-300'>${e.institution} — ${e.major}</div>
+        <div class='text-xs text-slate-400'>ปีที่จบ: ${e.year} | GPA: ${e.gpa}</div>
+      </div>`).join('') : `<p class='text-slate-500'>ไม่มีข้อมูลการศึกษา</p>`;
+  el('education-viewer').innerHTML = `<h4 class='font-semibold mb-2'>ประวัติการศึกษา (Real-time)</h4>${eduHtml}`;
+
+  // realtime experience output
+  const expHtml = exp.length ? exp.map(x=>`
+      <div class='p-2 bg-slate-800 rounded mb-2 border border-slate-700'>
+        <div class='font-semibold text-emerald-300'>${x.company}</div>
+        <div class='text-xs text-slate-300'>ตำแหน่ง: ${x.position}</div>
+        <div class='text-xs text-slate-400'>ช่วงเวลา: ${x.period}</div>
+        <div class='text-xs text-slate-500'>${x.responsibility}</div>
+      </div>`).join('') : `<p class='text-slate-500'>ไม่มีข้อมูลประสบการณ์</p>`;
+  el('experience-viewer').innerHTML = `<h4 class='font-semibold mb-2'>ประวัติการทำงานและประสบการณ์ (Real-time)</h4>${expHtml}`;
+
   const box = el('pb-content'); box.innerHTML = `\n    <div>\n      <p>ชื่อ: ${data?.pi_fullname||''}</p>\n      <p>วันเกิด: ${data?.pi_dob||''}</p>\n      <p>โทร: ${data?.pi_phone||''}</p>\n    </div>\n    <div class=\"mt-3\">\n      <h4 class=\"font-semibold\">การศึกษา</h4>\n      ${edu.length? edu.map(e=>`<p>- ${e.level} / ${e.institution} (${e.year})</p>`).join('') : '<p class=\\"text-slate-400\\">ไม่มีข้อมูล</p>'}\n    </div>\n    <div class=\"mt-3\">\n      <h4 class=\"font-semibold\">ทักษะ</h4>\n      ${skills.length? skills.map(s=>`<span class=\\"skill-chip mr-2\\">${s.skill}</span>`).join('') : '<p class=\\"text-slate-400\\">ไม่มีข้อมูล</p>'}\n    </div>\n  `;
  }catch(e){ console.warn(e); }
 }
@@ -289,6 +485,31 @@ async function loadWorksViewer(){ const list = await fetchTable('works'); el('wo
 async function loadFavoritesViewer(){ const favs = await fetchTable('favorites'); el('favorites-list').innerHTML = ''; favs.forEach(f=>{ const r = document.createElement('div'); r.className='p-2 bg-slate-800 rounded'; r.innerHTML = `<div class=\"font-semibold\">${f.title}</div><div class=\"text-xs\">${f.description||''}</div>`; el('favorites-list').appendChild(r); }); }
 
 // ----------------- REALTIME SUBSCRIPTION -----------------
+
+// realtime: education
+supabase.channel('realtime-experience')
+  .on('postgres_changes', { event: '*', schema: 'public', table: 'experience' }, ()=>{
+    loadExperienceAdmin();
+    loadViewerBio();
+  })
+  .subscribe();
+
+// realtime: education
+supabase.channel('realtime-education')
+  .on('postgres_changes', { event: '*', schema: 'public', table: 'education' }, ()=>{
+    loadEducationAdmin();    // admin list
+    loadViewerBio();         // viewer bio auto update
+  })
+  .subscribe();
+
+// realtime: skills (ENABLED)
+supabase.channel('realtime-skills')
+  .on('postgres_changes', { event: '*', schema: 'public', table: 'skills' }, ()=>{
+    loadSkillsAdmin();
+    loadViewerBio();
+  })
+  .subscribe();
+// (ทำเฉพาะประวัติการศึกษา — Education realtime เท่านั้น)
 // subscribe to realtime changes for works & favorites
 supabase.channel('realtime-works')
   .on('postgres_changes', { event: '*', schema: 'public', table: 'works' }, ()=>{
@@ -449,7 +670,7 @@ el('clear-fav-btn').onclick = async ()=>{ if(!confirm('ลบความชื�
 
 // initial load
 (async function init(){ await loadProfile(); await loadPersonalInfo(); await loadViewerBio(); loadWorksViewer(); loadFavoritesViewer(); // also populate admin lists initially
-  loadWorksAdmin(); loadFavoritesAdmin();
+  loadWorksAdmin(); loadFavoritesAdmin(); loadEducationAdmin();
 })();
 
 </script>
