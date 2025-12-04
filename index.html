@@ -158,7 +158,7 @@
     </div>
     <div class="flex justify-end gap-2 mt-5">
       <button id="exp-cancel" class="px-4 py-2 bg-slate-700 rounded">ยกเลิก</button>
-      <button id="exp-save" class="px-4 py-2 bg-emerald-400 text-black rounded font-semibold">บันทึก</button>
+      <button id="exp-save" class="px-3 py-1 rounded bg-emerald-400 text-black font-semibold">บันทึก</button>
     </div>
   </div>
 </div>
@@ -188,6 +188,7 @@
 
 
         
+
         <div id="section-works" class="hidden mb-4">
           <h3 class="font-semibold mb-2">ผลงาน</h3>
           <div class="flex gap-2 mb-3">
@@ -480,9 +481,9 @@ async function loadViewerBio(){ try{
 // ----------------- WORKS & FAVS (viewer & admin) -----------------
 async function loadWorksViewer(){ const list = await fetchTable('works'); el('work-grid').innerHTML = '';
   el('work-stats').textContent = `รวมผลงานทั้งหมด ${list.length} ชิ้น`;
-  list.forEach(w=>{ const card = document.createElement('div'); card.className='p-3 bg-slate-800 rounded'; card.innerHTML = `<div class=\"font-semibold\">${w.title}</div>${w.file_url?`<img src=\"${w.file_url}\" alt=\"${w.title}\" class=\"mt-2 w-full max-h-40 object-cover rounded\">`:''}${w.video_url?`<div class=\"mt-2 text-xs\">Video: <a href=\"${w.video_url}\" target=\"_blank\">ลิงก์</a></div>`:''}`; el('work-grid').appendChild(card); }); }
+  list.forEach(w=>{ const card = document.createElement('div'); card.className='p-3 bg-slate-800 rounded'; card.innerHTML = `<div class="font-semibold">${w.title}</div>${w.file_url?`<img src="${w.file_url}" alt="${w.title}" class="mt-2 w-full max-h-40 object-cover rounded">`:''}${w.video_url?`<div class="mt-2 text-xs">Video: <a href="${w.video_url}" target="_blank">ลิงก์</a></div>`:''}`; el('work-grid').appendChild(card); }); }
 
-async function loadFavoritesViewer(){ const favs = await fetchTable('favorites'); el('favorites-list').innerHTML = ''; favs.forEach(f=>{ const r = document.createElement('div'); r.className='p-2 bg-slate-800 rounded'; r.innerHTML = `<div class=\"font-semibold\">${f.title}</div><div class=\"text-xs\">${f.description||''}</div>`; el('favorites-list').appendChild(r); }); }
+async function loadFavoritesViewer(){ const favs = await fetchTable('favorites'); el('favorites-list').innerHTML = ''; favs.forEach(f=>{ const r = document.createElement('div'); r.className = 'p-2 bg-slate-800 rounded'; r.innerHTML = `<div class="font-semibold">${f.title}</div><div class="text-xs">${f.description||''}</div>`; el('favorites-list').appendChild(r); }); }
 
 // ----------------- REALTIME SUBSCRIPTION -----------------
 
@@ -563,7 +564,7 @@ async function loadWorksAdmin(){
         `);
         document.getElementById('modal-work-edit').onclick = async ()=>{
           await updateTable('works', id, { title: el('work-title').value, video_url: el('work-url').value });
-          showPopup('แก้ไขผลงานเรียบร้อย');
+          showPopup('แก้ไขผลงานเรียบร้อย'); loadWorksAdmin(); loadWorksViewer();
           closeModal();
         };
       });
@@ -618,7 +619,7 @@ async function loadFavoritesAdmin(){
         `);
         document.getElementById('modal-fav-edit').onclick = async ()=>{
           await updateTable('favorites', id, { title: el('fav-title').value, description: el('fav-desc').value });
-          showPopup('แก้ไขความชื่นชอบเรียบร้อย');
+          showPopup('แก้ไขความชื่นชอบเรียบร้อย'); loadFavoritesAdmin(); loadFavoritesViewer();
           closeModal();
         };
       })();
@@ -661,7 +662,7 @@ el('add-fav-btn').onclick = ()=>{
     <div class='flex justify-end gap-2'><button onclick='closeModal()' class='px-3 py-1 rounded bg-slate-700'>ยกเลิก</button><button id='modal-fav-save' class='px-3 py-1 rounded bg-emerald-400'>บันทึก</button></div>
   `);
   document.getElementById('modal-card').querySelector('#modal-fav-save').onclick = async ()=>{
-    const title = el('fav-title').value.trim(); const desc = el('fav-desc').value.trim()||null; if(!title){ alert('กรุณากรอกชื่อ'); return; } await insertTable('favorites', { title, description: desc }); showPopup('เพิ่มความชื่นชอบเรียบร้อย'); closeModal(); loadFavoritesViewer(); };
+    const title = el('fav-title').value.trim(); const desc = el('fav-desc').value.trim()||null; if(!title){ alert('กรุณากรอกชื่อ'); return; } await insertTable('favorites', { title, description: desc }); showPopup('เพิ่มความชื่นชอบเรียบร้อย'); closeModal(); loadFavoritesAdmin(); loadFavoritesViewer(); };
 };
 
 // clear handlers
